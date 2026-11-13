@@ -1,6 +1,7 @@
 """Trimmed Phase 1 pilot (user decision 2026-11-13): baseline vs one treatment arm on the same
 calibration trajectories, plus trimmed contamination / inline / audit checks.
-Per-trajectory saving + resume (agent.run). Refuses GPU 0 and refuses to start without enough free memory.
+Per-trajectory saving + resume (agent.run). Refuses to start without enough free GPU memory.
+GPU 0 approved again by the user on 2026-11-13.
 
 usage: python3 scripts/pilot_trimmed.py --gpu 2 [--util 0.22] [--jobs name ...] [--resume RUN_STAMP]
 """
@@ -28,8 +29,6 @@ if __name__ == "__main__":
     ap.add_argument("--jobs", nargs="*", default=None)
     ap.add_argument("--resume", default=None, help="timestamp of an earlier run to resume")
     a = ap.parse_args()
-    if a.gpu == 0:
-        sys.exit("refusing: user asked not to launch anything new on GPU 0")
     q = subprocess.run(["nvidia-smi", f"--id={a.gpu}", "--query-gpu=memory.total,memory.free",
                         "--format=csv,noheader,nounits"], capture_output=True, text=True).stdout.split(",")
     total, free = float(q[0]), float(q[1])
