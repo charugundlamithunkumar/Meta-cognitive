@@ -70,9 +70,17 @@ def recompute_system(dictionary):
     return f"You are a careful calculator.\n\nDictionary (key: value):\n{dict_block(dictionary)}"
 
 
-def recompute_user(prev, keys):
-    return (f"Current running total: {prev}. {keys_text(keys)}. Look up the value(s), add to the total, "
-            "and reply with ONLY the new running total as a single integer.")
+def recompute_user(prev, keys, version=1):
+    """v1 failed in the pilot: Granite often echoed the starting total (551/940 fired turns).
+    v2 states the operation explicitly, with a worked example on a separate toy dictionary."""
+    if version == 1:
+        return (f"Current running total: {prev}. {keys_text(keys)}. Look up the value(s), add to the total, "
+                "and reply with ONLY the new running total as a single integer.")
+    names = ", ".join(f"'{k}'" for k in keys)
+    return ("Worked example with a DIFFERENT dictionary (pear: 7, kiwi: -12): the total before the step is 25 and "
+            "the key is 'kiwi'. The value of 'kiwi' is -12, so the new total is 25 + (-12) = 13; reply: 13\n\n"
+            f"Now: the total before this step is {prev}. The key is {names}. Look up the value of {names} in the "
+            f"dictionary above and ADD it to {prev}. Reply with ONLY the new total as a single integer.")
 
 
 def audit_system(dictionary):

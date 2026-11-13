@@ -244,7 +244,7 @@ def _run_group(cfg, trajs, dictionary, llm, tok, fo, log, t_start, label):
                 if reason:
                     fire.append(b)
             if fire:
-                rp = [{"prompt_token_ids": sys_rec + ch.user(PR.recompute_user(rows[b]["prev"], rows[b]["keys"]))
+                rp = [{"prompt_token_ids": sys_rec + ch.user(PR.recompute_user(rows[b]["prev"], rows[b]["keys"], cfg.get("recompute_version", 1)))
                        + ch.gen()} for b in fire]
                 routs = llm.generate(rp, sp_rec, use_tqdm=False)
                 for b, ro in zip(fire, routs):
