@@ -1,0 +1,7 @@
+{
+  "dict_size": 100,
+  "horizon_length": 50000,
+  "num_samples": 100,
+  "min_input_value": -99,
+  "max_input_value": 99
+}

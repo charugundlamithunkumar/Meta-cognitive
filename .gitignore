@@ -1,0 +1,12 @@
+# model weights (17 GB) - never commit
+models/
+# raw run outputs (large); summaries go to results/
+runs/
+# dataset file over GitHub's 100 MB limit - fetch with scripts/fetch_data.py
+data/lhe/test.jsonl
+# instructor's unpublished materials - not ours to publish
+metacognitive-decay-report.md
+findings-and-new-claim.md
+__pycache__/
+*.pyc
+.pytest_cache/

@@ -1,0 +1,9 @@
+WARNING 11-13 13:55:40 [cuda.py:957] Detected different devices in the system: NVIDIA RTX 6000 Ada Generation, NVIDIA RTX 6000 Ada Generation, NVIDIA RTX PRO 6000 Blackwell Max-Q Workstation Edition. Please make sure to set `CUDA_DEVICE_ORDER=PCI_BUS_ID` to avoid unexpected behavior.
+torch==2.11.0
+vllm==0.24.0
+transformers==5.12.1
+numpy==2.2.6
+pandas==3.0.1
+scikit-learn==1.9.0
+scipy==1.17.1
+huggingface_hub==1.21.0

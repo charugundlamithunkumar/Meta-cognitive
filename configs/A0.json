@@ -1,0 +1,30 @@
+{
+  "arm": "A0",
+  "note": "Baseline; forked probes P(Yes), verbal, HC forecasts (none/true/placebo), awareness",
+  "model_id": "ibm-granite/granite-4.2-8b",
+  "model_revision": "a7042144125ce5ae64f89610e8289647fc000b9a",
+  "model_dir": "models/granite-4.2-8b",
+  "util": 0.6,
+  "max_model_len": 16384,
+  "T": 300,
+  "K": 1,
+  "seed": 0,
+  "think_budget": 2048,
+  "m": 5,
+  "tau": null,
+  "rate": null,
+  "checkpoints": [
+    10,
+    25,
+    50,
+    100,
+    150,
+    200,
+    250
+  ],
+  "audit_sampling": {
+    "temperature": 1.0,
+    "top_p": 0.95
+  },
+  "prompt_version": 2
+}
