@@ -27,5 +27,8 @@
     "top_p": 0.95
   },
   "prompt_version": 2,
-  "constrain": true
+  "constrain": true,
+  "recompute_version": 2,
+  "recompute_think": true,
+  "recompute_budget": 1024
 }

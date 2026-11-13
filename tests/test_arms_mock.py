@@ -78,10 +78,13 @@ class FakeLLM:
             tot = V + sum(self.d[k] for k in keys)
             v = "CORRECT" if tot == R else f"WRONG, total = {tot}"
             return self._out(f"checking</think>\nVERDICT: {v}", with_lps=False)
-        if "Current running total:" in last:  # re-compute prompt
-            prev = int(re.search(r"Current running total: (-?\d+)", last).group(1))
-            key = re.search(r"Key: (\w+)", last).group(1)
-            return self._out(str(prev + self.d[key]))
+        if "Current running total:" in last or "the total before this step is" in last:  # re-compute prompt
+            m = (re.search(r"Current running total: (-?\d+)", last)
+                 or re.search(r"the total before this step is (-?\d+)", last))
+            prev = int(m.group(1))
+            key = (re.search(r"Key: (\w+)", last) or re.search(r"The key is '(\w+)'", last)).group(1)
+            ans = str(prev + self.d[key])
+            return self._out(("ok</think>" + ans) if text.rstrip().endswith("<think>") else ans, with_lps=False)
         # agent turn
         key = re.search(r"Key: (\w+)", last).group(1)
         ms = re.search(r"Your current running total: (-?\d+)", last)

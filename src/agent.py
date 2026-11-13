@@ -244,13 +244,35 @@ def _run_group(cfg, trajs, dictionary, llm, tok, fo, log, t_start, label):
                 if reason:
                     fire.append(b)
             if fire:
-                rp = [{"prompt_token_ids": sys_rec + ch.user(PR.recompute_user(rows[b]["prev"], rows[b]["keys"], cfg.get("recompute_version", 1)))
-                       + ch.gen()} for b in fire]
-                routs = llm.generate(rp, sp_rec, use_tqdm=False)
+                think = bool(cfg.get("recompute_think"))
+                ver = cfg.get("recompute_version", 1)
+                rp = []
+                for b in fire:
+                    u = PR.recompute_user(rows[b]["prev"], rows[b]["keys"], ver)
+                    if think:
+                        u += PR.LOW_EFFORT_SUFFIX
+                    rp.append({"prompt_token_ids": sys_rec + ch.user(u) + ch.gen(think=think)})
+                if think:
+                    # low-effort thinking re-compute (pilot: 98.8% correct vs 5-24% without thinking);
+                    # model-card sampling, seeded per (trajectory, turn)
+                    a = cfg["audit_sampling"]
+                    sps = [SamplingParams(temperature=a["temperature"], top_p=a["top_p"],
+                                          max_tokens=cfg.get("recompute_budget", 1024), stop_token_ids=stop,
+                                          seed=cfg.get("seed", 0) * 1_000_003 + rows[b]["sample_id"] * 10_007 + t + 7)
+                           for b in fire]
+                else:
+                    sps = sp_rec
+                routs = llm.generate(rp, sps, use_tqdm=False)
                 for b, ro in zip(fire, routs):
-                    rraw = ro.outputs[0].text.strip()
+                    full = ro.outputs[0].text
+                    if think:
+                        rraw = full.rsplit("</think>", 1)[1].strip() if "</think>" in full else ""
+                    else:
+                        rraw = full.strip()
                     rv, rwf, _ = parse_reply(rraw)
-                    rows[b]["gate"].update(rec_raw=rraw, rec_value=rv, rec_wf=rwf)
+                    rows[b]["gate"].update(rec_raw=rraw, rec_value=rv, rec_wf=rwf,
+                                           rec_tokens=len(ro.outputs[0].token_ids),
+                                           rec_finished=(not think) or ("</think>" in full))
 
         # ---------- 3. commit + label
         for b, r in enumerate(rows):
