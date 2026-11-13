@@ -9,7 +9,7 @@
   "T": 300,
   "K": 1,
   "seed": 0,
-  "think_budget": 2048,
+  "think_budget": 8192,
   "m": 5,
   "tau": null,
   "rate": null,
@@ -27,5 +27,6 @@
     "top_p": 0.95
   },
   "prompt_version": 2,
-  "constrain": true
+  "constrain": true,
+  "audit_low_effort": false
 }
