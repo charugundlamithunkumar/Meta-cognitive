@@ -147,7 +147,9 @@ def parse_audit(text):
                 total=int(m.group(2)) if m.group(2) is not None else None)
 
 
-def run(cfg, trajs, dictionary, llm, tok, out_dir):
+def _run_group(cfg, trajs, dictionary, llm, tok, fo, log, t_start, label):
+    """Run one group of trajectories in lockstep. Rows are flushed after every turn.
+    Returns one summary dict per trajectory."""
     from vllm import SamplingParams
 
     arm = cfg["arm"]
@@ -194,15 +196,9 @@ def run(cfg, trajs, dictionary, llm, tok, out_dir):
 
     B = len(trajs)
     T = len(trajs[0].turns)
-    S = [dict(ctx=list(sys_agent), prev=0, V=0, t0=-1, note=None, kinds=[],
+    S = [dict(ctx=list(sys_agent), prev=0, V=0, t0=-1, note=None, kinds=[], n_gate=0, n_audit=0, n_correct=0,
               rng=random.Random(cfg.get("seed", 0) * 100003 + tr.sample_id)) for tr in trajs]
-
-    out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=False)
-    (out_dir / "config.json").write_text(json.dumps(cfg, indent=2))
-    fo = open(out_dir / "rows.jsonl", "w")
-    log = open(out_dir / "run.log", "w")
-    t_start = time.time()
+    probes_on = arm in PROBE_ARMS and cfg.get("probes", True)
 
     for t in range(T):
         # ---------- 1. answer
@@ -269,7 +265,7 @@ def run(cfg, trajs, dictionary, llm, tok, out_dir):
             S[b]["kinds"].append(r["kind"])
 
         # ---------- 4. forked probes (A0, A0_inline)
-        if arm in PROBE_ARMS:
+        if probes_on:
             bases = [S[b]["ctx"] + ch.user(user_txt[b]) + ch.asst(rows[b]["hist_str"]) for b in range(B)]
             reqs, tags = [], []
             for b in range(B):
@@ -350,15 +346,71 @@ def run(cfg, trajs, dictionary, llm, tok, out_dir):
                     a["action"] = "none"   # unfinished, or WRONG without a total
                 a["auditor_total_correct"] = (pa["total"] == trajs[b].turns[t].truth) if pa["total"] is not None else None
 
-        for r in rows:
+        for b, r in enumerate(rows):
             fo.write(json.dumps(r) + "\n")
+            S[b]["n_gate"] += int(bool(r.get("gate", {}).get("fired")))
+            if "audit" in r:
+                S[b]["n_audit"] += 1
+                S[b]["n_correct"] += int(r["audit"]["action"] == "correct")
         fo.flush()
         if t % 10 == 0 or t == T - 1:
             acc = sum(r["kind"] == "ok" for r in rows) / B
-            msg = f"turn {t} elapsed {time.time() - t_start:.0f}s ctx_len {len(S[0]['ctx'])} acc_now {acc:.2f}"
+            msg = (f"[{label}] turn {t} elapsed {time.time() - t_start:.0f}s ctx_len {len(S[0]['ctx'])} "
+                   f"acc_now {acc:.2f}")
             print(msg, flush=True)
             log.write(msg + "\n")
             log.flush()
+
+    from .metrics import turns_to_first_error
+    summaries = []
+    for b, tr in enumerate(trajs):
+        k = S[b]["kinds"]
+        summaries.append(dict(sample_id=tr.sample_id, arm=arm, T=len(k), accuracy=sum(x == "ok" for x in k) / len(k),
+                              turns_to_first_error=turns_to_first_error(k),
+                              kinds={x: k.count(x) for x in sorted(set(k))},
+                              gate_fired=S[b]["n_gate"], audits=S[b]["n_audit"], corrections=S[b]["n_correct"],
+                              finished_at=time.strftime("%Y-%m-%d %H:%M:%S")))
+    return summaries
+
+
+def run(cfg, trajs, dictionary, llm, tok, out_dir, resume=False):
+    """Run an arm over `trajs` in groups of cfg['group_size'] (default: all at once).
+
+    Saving: every turn's rows are flushed to rows.jsonl; every finished trajectory gets a line in
+    trajectories.jsonl immediately. Resume (resume=True, same out_dir): trajectories already in
+    trajectories.jsonl are skipped, and rows of unfinished trajectories are discarded first.
+    """
+    out_dir = Path(out_dir)
+    done = set()
+    if resume and (out_dir / "trajectories.jsonl").exists():
+        with open(out_dir / "trajectories.jsonl") as f:
+            done = {json.loads(l)["sample_id"] for l in f if l.strip()}
+        keep = []
+        if (out_dir / "rows.jsonl").exists():
+            with open(out_dir / "rows.jsonl") as f:
+                keep = [l for l in f if l.strip() and json.loads(l)["sample_id"] in done]
+        with open(out_dir / "rows.jsonl", "w") as f:
+            f.writelines(keep)
+    else:
+        out_dir.mkdir(parents=True, exist_ok=False)
+        (out_dir / "config.json").write_text(json.dumps(cfg, indent=2))
+    todo = [tr for tr in trajs if tr.sample_id not in done]
+    gs = cfg.get("group_size") or len(todo) or 1
+    fo = open(out_dir / "rows.jsonl", "a")
+    ft = open(out_dir / "trajectories.jsonl", "a")
+    log = open(out_dir / "run.log", "a")
+    t_start = time.time()
+    if done:
+        log.write(f"RESUME: skipping {len(done)} finished trajectories\n")
+    for g0 in range(0, len(todo), gs):
+        group = todo[g0:g0 + gs]
+        label = f"traj {group[0].sample_id}..{group[-1].sample_id}"
+        for s in _run_group(cfg, group, dictionary, llm, tok, fo, log, t_start, label):
+            ft.write(json.dumps(s) + "\n")
+            ft.flush()
+            log.write(f"saved trajectory {s['sample_id']} accuracy={s['accuracy']:.3f}\n")
+            log.flush()
     fo.close()
+    ft.close()
     log.write(f"DONE {time.time() - t_start:.0f}s\n")
     log.close()

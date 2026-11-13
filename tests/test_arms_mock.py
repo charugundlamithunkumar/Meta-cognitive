@@ -221,6 +221,39 @@ class TestArms(unittest.TestCase):
         self.assertTrue(all(r["kind"] == "ok" for r in r0[ft + 1:]))
         self.assertTrue(all(r["prev"] == (r0[i - 1]["truth"] if i else 0) for i, r in enumerate(r0)))
 
+    def test_per_trajectory_save_and_resume(self):
+        from src.agent import run
+        cfg = json.loads((ROOT / "configs" / "A0.json").read_text())
+        cfg.update({"T": self.T, "checkpoints": [], "group_size": 1})
+        faults = {self.fault_key: "slip"}
+        # uninterrupted reference run
+        ref = Path(tempfile.mkdtemp()) / "ref"
+        run(cfg, self.trajs, self.d, FakeLLM(self.tok, self.d, faults), self.tok, ref)
+        with open(ref / "trajectories.jsonl") as f:
+            summ = [json.loads(l) for l in f]
+        self.assertEqual([s["sample_id"] for s in summ], [0, 1])          # one line per finished trajectory
+        # simulate a crash: trajectory 0 finished, trajectory 1 half-written
+        crash = Path(tempfile.mkdtemp()) / "crash"
+        run(cfg, self.trajs[:1], self.d, FakeLLM(self.tok, self.d, faults), self.tok, crash)
+        with open(ref / "rows.jsonl") as f:
+            partial = [l for l in f if json.loads(l)["sample_id"] == 1][: self.T // 2]
+        with open(crash / "rows.jsonl", "a") as f:
+            f.writelines(partial)
+        run(cfg, self.trajs, self.d, FakeLLM(self.tok, self.d, faults), self.tok, crash, resume=True)
+        load = lambda p: sorted((json.loads(l) for l in open(p)), key=lambda r: (r["sample_id"], r["turn"]))
+        a, b = load(ref / "rows.jsonl"), load(crash / "rows.jsonl")
+        self.assertEqual(len(a), len(b))                                   # no duplicate or missing rows
+        self.assertEqual([(r["sample_id"], r["turn"], r["kind"], r["committed"]) for r in a],
+                         [(r["sample_id"], r["turn"], r["kind"], r["committed"]) for r in b])
+        with open(crash / "trajectories.jsonl") as f:
+            self.assertEqual(sorted(json.loads(l)["sample_id"] for l in f), [0, 1])
+        self.assertIn("RESUME: skipping 1", (crash / "run.log").read_text())
+
+    def test_probes_can_be_switched_off(self):
+        rows, llm = self.run_arm("A0", {}, probes=False, checkpoints=[5])
+        self.assertFalse(any("probes" in r for r in rows))
+        self.assertFalse(any("Over your next 10 turns" in c for c in llm.calls))
+
     def test_HC_evidence_true_and_placebo(self):
         cp = self.T - 1
         rows, llm = self.run_arm("A0", {self.fault_key: "slip"}, checkpoints=[cp])
