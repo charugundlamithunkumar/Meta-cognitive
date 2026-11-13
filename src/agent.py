@@ -106,10 +106,23 @@ def answer_token_info(co, tok, eos_ids, inline):
     else:
         fin = []
     pick = lambda qs: ([chosen[q] for q in qs], [tops[q] for q in qs])
+    # Renormalized over number-like tokens (digits / minus) among the top-k at each position:
+    # isolates numeric uncertainty from mass on words (relevant under constrained decoding).
+    renorm = []
+    for q in fin:
+        num = []
+        for tid, lp in co.logprobs[q].items():
+            s = tok.decode([tid])
+            if s.strip() and re.fullmatch(r"\s?-?\d*", s):
+                num.append(lp.logprob)
+        if num:
+            den = math.log(sum(math.exp(x) for x in num))
+            renorm.append(chosen[q] - den)
     return dict(
         all=token_stats(chosen, tops),
         pre=token_stats(*pick(pre)),
         fin=token_stats(*pick(fin)),
+        fin_renorm_lp_min=(min(renorm) if renorm else float("nan")),
         tok_strs=strs,
         tok_lps=[round(x, 5) for x in chosen],
     )
@@ -152,11 +165,20 @@ def run(cfg, trajs, dictionary, llm, tok, out_dir):
     abc_ids = [ch.enc(w)[0] for w in ["A", "B", "C"]]
 
     # Replies end at the first line break (the answer is the first line); see plan §13.
+    # With cfg["constrain"], replies are forced by regex to be an integer (inline: 'N | C'),
+    # so format failures cannot occur or enter the history; logprobs stay raw (pre-constraint).
+    def so(regex):
+        if not cfg.get("constrain"):
+            return {}
+        from vllm.sampling_params import StructuredOutputsParams
+        return dict(structured_outputs=StructuredOutputsParams(regex=regex))
+    INT_RX = r"-?[0-9]{1,6}"
+    ans_rx = INT_RX + r" \| [0-9]{1,3}" if inline else INT_RX
     sp_ans = SamplingParams(temperature=0, max_tokens=24 if inline else 16, logprobs=20, stop_token_ids=stop,
-                            stop=["\n"])
-    sp_num = SamplingParams(temperature=0, max_tokens=6, stop_token_ids=stop, stop=["\n"])
+                            stop=["\n"], **so(ans_rx))
+    sp_num = SamplingParams(temperature=0, max_tokens=6, stop_token_ids=stop, stop=["\n"], **so(r"[0-9]{1,3}"))
     sp_lp1 = SamplingParams(temperature=0, max_tokens=1, logprobs=20)
-    sp_rec = SamplingParams(temperature=0, max_tokens=16, stop_token_ids=stop, stop=["\n"])
+    sp_rec = SamplingParams(temperature=0, max_tokens=16, stop_token_ids=stop, stop=["\n"], **so(INT_RX))
 
     def sp_audit(seed):
         # Thinking audits use the model card's recommended sampling (Granite 4.2: temperature 1.0,
@@ -208,7 +230,7 @@ def run(cfg, trajs, dictionary, llm, tok, out_dir):
             rows.append(dict(arm=arm, sample_id=trajs[b].sample_id, turn=t, keys=list(turn.keys), v=turn.value,
                              truth=turn.truth, prev=prev_used, note=S[b]["note"], raw=raw, value=val,
                              wellformed=wf, conf_inline=conf, lp=info["all"], lp_pre=info["pre"],
-                             lp_fin=info["fin"], tok_strs=info["tok_strs"], tok_lps=info["tok_lps"],
+                             lp_fin=info["fin"], lp_fin_renorm_min=info["fin_renorm_lp_min"], tok_strs=info["tok_strs"], tok_lps=info["tok_lps"],
                              gen_tokens=len(co.token_ids)))
 
         # ---------- 2. gates (A1a / A1b / A2)
