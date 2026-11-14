@@ -31,7 +31,7 @@ This is a student group project. Each of the three members runs the same study o
 | HD | **Not supported** | Removing the history (own total) matches the baseline's accuracy, but even the true-total control still drifts downward (the drift tracks the size of the number, exploratory) |
 | HE | Not reproduced | The inline format did not lower logit AUROC on this task |
 
-The full write-up, with figures and limitations, is in [`results/main_results.md`](results/main_results.md). Machine-readable verdicts are in `results/main_results.json`.
+The final report (PDF, for instructor review) is [`final-report.pdf`](final-report.pdf); the full write-up, with figures and limitations, is in [`results/main_results.md`](results/main_results.md). Machine-readable verdicts are in `results/main_results.json`.
 
 The pass/fail criteria, statistics (paired bootstrap over trajectories, Holm correction) and every design decision are in [`implementation-plan.md`](implementation-plan.md); the proposal is in [`research-proposal.pdf`](research-proposal.pdf). Changes made after the plan was written are listed in its deviations log (§13).
 
