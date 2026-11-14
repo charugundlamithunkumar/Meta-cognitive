@@ -21,6 +21,18 @@ This is a student group project. Each of the three members runs the same study o
 | **HD** | *Collapse is inheritance, not context length.* Replacing the history with a state line holding the agent's own total does not prevent the collapse; the true total does. |
 | **HE** | *Logit format effect.* Scoring only the final-integer tokens removes any loss of logit signal caused by a `total \| confidence` reply format. |
 
+## Results (Granite 4.2 8B, 32 test trajectories × 300 turns, pre-registered)
+
+| | Verdict | Key number |
+|---|---|---|
+| HA | **Supported** | Logit-gated re-compute beats the same re-compute fired at random: accuracy +0.045 [+0.024, +0.068]; first error at turn 20 instead of 4–6 |
+| HB | **Partial** | The fresh-context audit raises accuracy 0.014 → 0.130 and stays accurate late in the run. The in-history audit did *not* degrade for Granite |
+| HC | **Supported** | The checker's true error count cuts forecast error 0.71 → 0.10; a placebo count gives 0.35 |
+| HD | **Not supported** | Removing the history (own total) matches the baseline's accuracy, but even the true-total control still drifts downward (the drift tracks the size of the number, exploratory) |
+| HE | Not reproduced | The inline format did not lower logit AUROC on this task |
+
+The full write-up, with figures and limitations, is in [`results/main_results.md`](results/main_results.md). Machine-readable verdicts are in `results/main_results.json`.
+
 The pass/fail criteria, statistics (paired bootstrap over trajectories, Holm correction) and every design decision are in [`implementation-plan.md`](implementation-plan.md); the proposal is in [`research-proposal.pdf`](research-proposal.pdf). Changes made after the plan was written are listed in its deviations log (§13).
 
 ## Dataset
@@ -68,6 +80,11 @@ python3 scripts/pilot_batch.py                                # Phase 1 pilot jo
 python3 scripts/run_arm.py --config configs/A0.json --split calibration
 python3 scripts/run_arm.py --config configs/A0.json --split test   # main runs, only after pre-registration
 python3 scripts/pilot_report.py runs/<run_dir>
+python3 scripts/main_runs.py --gpu 0                          # all 9 arms on the test set (guards: prereg checksums)
+python3 scripts/analyze_main.py --stamp <STAMP>               # pre-registered verdicts -> results/main_results.json
+python3 scripts/figures.py --stamp <STAMP>                    # figures -> results/figures/
+python3 scripts/secondary.py --stamp <STAMP>                  # secondary analyses -> results/secondary.json
+# without a GPU: unpack results/raw_main_20261113-173033/*.tar.gz into runs/ and run the three analysis scripts
 ```
 
 `run_arm.py` refuses test ids unless `--split test` is passed explicitly.
@@ -77,7 +94,7 @@ python3 scripts/pilot_report.py runs/<run_dir>
 ```
 src/       lhe_data.py (pinned loader, splits, fresh sequences) · labels.py (error taxonomy) · prompts.py
            agent.py (turn loop for all arms) · metrics.py · stats.py
-scripts/   run_arm.py · smoke_all.py · pilot_batch.py · pilot_report.py · prompt_check.py · diag_inline.py · fetch_data.py
+scripts/   main_runs.py · analyze_main.py · figures.py · secondary.py · compare_arms.py · run_arm.py · smoke_all.py · pilot_batch.py · pilot_report.py · prompt_check.py · diag_inline.py · fetch_data.py
 configs/   one JSON per arm
 tests/     unit tests
 data/lhe/  dictionary, config, checksums, source note (test.jsonl fetched separately)
