@@ -1,7 +1,6 @@
 """The turn loop for every arm (implementation-plan.md §6).
 
-Arms: A0, A0_inline, A1a, A1b, A2, A3, A4, D1, D2 (Study 1, prereg.md);
-      A1all, A5, T1 (Study 2, prereg2.md). Study-2 arms add branches only; Study-1 code paths are unchanged.
+Arms: A0, A0_inline, A1a, A1b, A2, A3, A4, D1, D2.
 All trajectories advance in lockstep; each turn is one batched vLLM call (+ batched forks).
 The chat format is derived from the model's own official chat template (see Chat), so the
 same code works for any model with an `enable_thinking` switch (our model: Granite 4.2 8B).
@@ -20,12 +19,9 @@ from .metrics import token_stats
 VERDICT_RE = re.compile(r"VERDICT:\s*(CORRECT|WRONG)(?:\s*,\s*total\s*=\s*(-?\d+))?", re.I)
 INT_RE = re.compile(r"-?\d+")
 
-HISTORY_ARMS = {"A0", "A0_inline", "A1a", "A1b", "A2", "A3", "A4", "A1all", "A5", "T1"}
-GATE_ARMS = {"A1a", "A1b", "A2", "A1all", "A5"}
-LOGIT_GATE_ARMS = {"A1b", "A5"}      # A5 = A1b's logit gate + A3's fresh audit
-AUDIT_ARMS = {"A3", "A4", "A5"}
-FRESH_AUDIT_ARMS = {"A3", "A5"}
-THINK_AGENT_ARMS = {"T1"}           # the agent itself answers with low-effort thinking every turn
+HISTORY_ARMS = {"A0", "A0_inline", "A1a", "A1b", "A2", "A3", "A4"}
+GATE_ARMS = {"A1a", "A1b", "A2"}
+AUDIT_ARMS = {"A3", "A4"}
 COMPACT_ARMS = {"D1", "D2"}
 PROBE_ARMS = {"A0", "A0_inline"}
 
@@ -213,48 +209,25 @@ def _run_group(cfg, trajs, dictionary, llm, tok, fo, log, t_start, label):
                 state = S[b]["prev"] if arm == "D1" else (trajs[b].turns[t - 1].truth if t > 0 else 0)
                 u = PR.compact_turn(state, turn.keys)
                 prompts.append(sys_agent + ch.user(u) + ch.gen())
-            elif arm in THINK_AGENT_ARMS:
-                # the low-effort marker goes on the current message only (as the official template does);
-                # the history keeps the plain turn text
-                u = PR.turn_text(turn.keys, S[b]["note"])
-                prompts.append(S[b]["ctx"] + ch.user(u + PR.LOW_EFFORT_SUFFIX) + ch.gen(think=True))
             else:
                 u = PR.turn_text(turn.keys, S[b]["note"])
                 prompts.append(S[b]["ctx"] + ch.user(u) + ch.gen())
             user_txt.append(u)
-        if arm in THINK_AGENT_ARMS:
-            a = cfg["audit_sampling"]
-            sps = [SamplingParams(temperature=a["temperature"], top_p=a["top_p"], max_tokens=cfg["agent_think_budget"],
-                                  stop_token_ids=stop,
-                                  seed=cfg.get("seed", 0) * 1_000_003 + trajs[b].sample_id * 10_007 + t + 3)
-                   for b in range(len(trajs))]
-            outs = llm.generate([{"prompt_token_ids": p} for p in prompts], sps, use_tqdm=False)
-        else:
-            outs = llm.generate([{"prompt_token_ids": p} for p in prompts], sp_ans, use_tqdm=False)
+        outs = llm.generate([{"prompt_token_ids": p} for p in prompts], sp_ans, use_tqdm=False)
 
         rows = []
         for b, o in enumerate(outs):
             co = o.outputs[0]
             turn = trajs[b].turns[t]
-            if arm in THINK_AGENT_ARMS:
-                # answer = first line after </think>; unfinished thinking -> empty reply -> non-answer
-                full = co.text
-                tail = full.rsplit("</think>", 1)[1] if "</think>" in full else ""
-                raw = (tail.strip().splitlines() or [""])[0].strip()
-                none = dict(lp_min=None, lp_mean=None, ent_max=None, margin_min=None)
-                info = dict(all=none, pre=none, fin=none, fin_renorm_lp_min=None, tok_strs=None, tok_lps=None)
-            else:
-                raw = co.text.strip()
-                info = answer_token_info(co, tok, eos_ids, inline)
+            raw = co.text.strip()
             val, wf, conf = parse_reply(raw, inline)
+            info = answer_token_info(co, tok, eos_ids, inline)
             prev_used = (S[b]["prev"] if arm != "D2" else (trajs[b].turns[t - 1].truth if t > 0 else 0))
             rows.append(dict(arm=arm, sample_id=trajs[b].sample_id, turn=t, keys=list(turn.keys), v=turn.value,
                              truth=turn.truth, prev=prev_used, note=S[b]["note"], raw=raw, value=val,
                              wellformed=wf, conf_inline=conf, lp=info["all"], lp_pre=info["pre"],
                              lp_fin=info["fin"], lp_fin_renorm_min=info["fin_renorm_lp_min"], tok_strs=info["tok_strs"], tok_lps=info["tok_lps"],
                              gen_tokens=len(co.token_ids)))
-            if arm in THINK_AGENT_ARMS:
-                rows[-1]["think_finished"] = "</think>" in co.text
 
         # ---------- 2. gates (A1a / A1b / A2)
         if arm in GATE_ARMS:
@@ -263,10 +236,8 @@ def _run_group(cfg, trajs, dictionary, llm, tok, fo, log, t_start, label):
                 reason = None
                 if not r["wellformed"]:
                     reason = "format"
-                elif arm in LOGIT_GATE_ARMS and r["lp"]["lp_min"] < cfg["tau"]:
+                elif arm == "A1b" and r["lp"]["lp_min"] < cfg["tau"]:
                     reason = "logit"
-                elif arm == "A1all":
-                    reason = "always"
                 elif arm == "A2" and S[b]["rng"].random() < cfg["rate"]:
                     reason = "random"
                 r["gate"] = dict(fired=reason is not None, reason=reason)
@@ -371,7 +342,7 @@ def _run_group(cfg, trajs, dictionary, llm, tok, fo, log, t_start, label):
                 q = PR.audit_user(st["t0"], st["V"], keys_since, t, R)
                 if cfg.get("audit_low_effort"):
                     q += PR.LOW_EFFORT_SUFFIX
-                base = (sys_aud if arm in FRESH_AUDIT_ARMS else st["ctx"])
+                base = (sys_aud if arm == "A3" else st["ctx"])
                 reqs.append({"prompt_token_ids": base + ch.user(q) + ch.gen(think=True)})
                 rows[b]["audit"] = dict(t0=st["t0"], V=st["V"], R=R, n_keys=len(keys_since),
                                         actually_wrong=R != trajs[b].turns[t].truth)
