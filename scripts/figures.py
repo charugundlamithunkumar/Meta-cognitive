@@ -306,7 +306,7 @@ def fig_d2_magnitude(R, out):
     ax.set_ylabel("D2 accuracy (true total supplied)")
     ax.set_ylim(0, 1)
     ax.legend(loc="lower left", fontsize=8.5)
-    ax.set_title("Exploratory: D2 drift tracks the size of the total", loc="left", fontsize=11)
+    ax.set_title("Exploratory: D2 accuracy by size of the total", loc="left", fontsize=11)
     fig.tight_layout()
     fig.savefig(out / "fig7_d2_by_magnitude.png", dpi=200)
     plt.close(fig)

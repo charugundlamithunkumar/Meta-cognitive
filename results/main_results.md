@@ -114,7 +114,8 @@ Forecast MAE:
   - The mean |total| grows from about 230 in turns 0–49 to about 985 in turns 200–299.
   - With |total| < 1000, accuracy is 0.69 / 0.67 / 0.66 / 0.64 across bins.
   - With |total| ≥ 1000, it is about 0.37–0.40 in every bin with at least 20 such turns.
-  - Within a size class, the drift is small. The slope test mixes position with number size, which grows along this task.
+  - Number size explains only part of the drift. A logistic regression of new slips on turn and digit count (`scripts/magnitude_analysis.py`, trajectory bootstrap) gives +0.30 log-odds per extra digit [+0.10, +0.42]. A turn effect of +0.21 log-odds per 100 turns [+0.14, +0.28] remains after this coarse control. Finer-grained size may explain the rest; Study 2's bounded-total control (D2b) tests this directly.
+  - Related, and more informative: with the full history (A0), the slip rate rises with position (+0.56 log-odds per 100 turns [+0.50, +0.64], digits controlled). Without history (D1, same own-total state), it is flat (+0.03 [−0.02, +0.08]). The long context does raise the rate of *new* slips, but accuracy does not change, because inheritance already dominates.
 
 ![D2 by magnitude](figures/fig7_d2_by_magnitude.png)
 

@@ -259,7 +259,13 @@ S += bl([
     "part fails.",
     "<b>Exploratory (post hoc):</b> the mean |total| grows from about 230 to about 985 across the run. With "
     "|total| below 1000, D2 accuracy is 0.69 / 0.67 / 0.66 / 0.64 by bin; with 4-digit totals it is about 0.37–0.40 "
-    "in every bin with at least 20 such turns. The drift tracks number size more than position (Figure 6).",
+    "in every bin with at least 20 such turns. In a logistic regression, number size explains part of the drift "
+    "(+0.30 log-odds per extra digit), but a turn effect of +0.21 log-odds per 100 turns [+0.14, +0.28] remains "
+    "after this coarse control. A bounded-total control (Study 2) tests this directly.",
+    "<b>Exploratory: the history raises new slips.</b> With digits controlled, the slip rate rises with position "
+    "when the full history is present (A0: +0.56 log-odds per 100 turns [+0.50, +0.64]) and is flat without it "
+    "(D1: +0.03 [−0.02, +0.08]). Long context makes new slips more likely, yet accuracy is unchanged because "
+    "inheritance already dominates.",
 ])
 S.append(fig("fig7_d2_by_magnitude.png", "Figure 6 (exploratory). D2 accuracy by turn bin, split by the size of "
              "the true running total; n = turns.", width=W * .78))

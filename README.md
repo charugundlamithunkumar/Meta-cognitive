@@ -28,7 +28,7 @@ This is a student group project. Each of the three members runs the same study o
 | HA | **Supported** | Logit-gated re-compute beats the same re-compute fired at random: accuracy +0.045 [+0.024, +0.068]; first error at turn 20 instead of 4–6 |
 | HB | **Partial** | The fresh-context audit raises accuracy 0.014 → 0.130 and stays accurate late in the run. The in-history audit did *not* degrade for Granite |
 | HC | **Supported** | The checker's true error count cuts forecast error 0.71 → 0.10; a placebo count gives 0.35 |
-| HD | **Not supported** | Removing the history (own total) matches the baseline's accuracy, but even the true-total control still drifts downward (the drift tracks the size of the number, exploratory) |
+| HD | **Not supported** | Removing the history (own total) matches the baseline's accuracy, but even the true-total control still drifts downward (number size explains part of this drift, exploratory; Study 2 tests it directly) |
 | HE | Not reproduced | The inline format did not lower logit AUROC on this task |
 
 The final report (PDF, for instructor review) is [`final-report.pdf`](final-report.pdf); the full write-up, with figures and limitations, is in [`results/main_results.md`](results/main_results.md). Machine-readable verdicts are in `results/main_results.json`.
