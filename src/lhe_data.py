@@ -74,24 +74,40 @@ def group_turns(keys, values, outputs, T, K):
 
 
 FRESH_ID_OFFSET = 10_000  # fresh sequences get sample_id = 10_000 + seed (never clash with 0-99)
+BOUNDED_ID_OFFSET = 20_000  # bounded fresh sequences (Study 2): sample_id = 20_000 + seed
 
 
-def generate_fresh(seeds, T, K=1, data_dir=DATA_DIR):
+def generate_fresh(seeds, T, K=1, data_dir=DATA_DIR, bound=None):
     """Fresh sequences on the same dictionary (contamination check, plan §2): keys drawn
-    uniformly at random, i.i.d., which matches the published samples' key statistics."""
+    uniformly at random, i.i.d., which matches the published samples' key statistics.
+
+    bound (Study 2, prereg2.md): if set, each key is drawn uniformly from the keys that keep the
+    running total within [-bound, bound] (K = 1 only). This holds the size of the total fixed over
+    position, so a position effect can be separated from a magnitude effect."""
     import random
     d = load_dictionary(data_dir)
     names = list(d)
     out = []
     for s in seeds:
-        rng = random.Random(FRESH_ID_OFFSET + s)
-        keys = [rng.choice(names) for _ in range(T * K)]
+        if bound is None:
+            rng = random.Random(FRESH_ID_OFFSET + s)
+            keys = [rng.choice(names) for _ in range(T * K)]
+        else:
+            if K != 1:
+                raise ValueError("bounded sequences are defined for K = 1 only")
+            rng = random.Random(BOUNDED_ID_OFFSET + s)
+            keys, tot = [], 0
+            for _ in range(T):
+                k = rng.choice([n for n in names if abs(tot + d[n]) <= bound])
+                keys.append(k)
+                tot += d[k]
         values = [d[k] for k in keys]
         outputs, tot = [], 0
         for v in values:
             tot += v
             outputs.append(tot)
-        out.append(Trajectory(FRESH_ID_OFFSET + s, group_turns(keys, values, outputs, T, K)))
+        off = FRESH_ID_OFFSET if bound is None else BOUNDED_ID_OFFSET
+        out.append(Trajectory(off + s, group_turns(keys, values, outputs, T, K)))
     return out
 
 

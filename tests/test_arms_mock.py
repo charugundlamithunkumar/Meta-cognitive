@@ -98,11 +98,15 @@ class FakeLLM:
             nums = [int(a) for a in asst if re.fullmatch(r"-?\d+", a.strip())]
             base = nums[-1] if nums else 0
         f = self.faults.get(key)
+        think = text.rstrip().endswith("<think>")          # T1: the agent itself thinks
+        wrap = (lambda x: "reasoning</think>\n" + x) if think else (lambda x: x)
+        if f == "unfinished" and think:
+            return self._out("reasoning that never ends", with_lps=False)
         if f == "malformed":
-            return self._out("oops")
+            return self._out(wrap("oops"), with_lps=not think)
         if f == "slip":
-            return self._out(str(base + self.d[key] + 1), lp=LP_SLIP)
-        return self._out(str(base + self.d[key]))
+            return self._out(wrap(str(base + self.d[key] + 1)), lp=LP_SLIP, with_lps=not think)
+        return self._out(wrap(str(base + self.d[key])), with_lps=not think)
 
     def generate(self, prompts, params, use_tqdm=False):
         outs = []
@@ -131,7 +135,8 @@ class TestArms(unittest.TestCase):
 
     def run_arm(self, arm, faults, **over):
         from src.agent import run
-        cfg = json.loads((ROOT / "configs" / f"{arm}.json").read_text())
+        p = ROOT / "configs" / f"{arm}.json"
+        cfg = json.loads((p if p.exists() else ROOT / "configs" / "study2" / f"{arm}.json").read_text())
         cfg.update({"T": self.T, "checkpoints": [], **over})
         llm = FakeLLM(self.tok, self.d, faults)
         out = Path(tempfile.mkdtemp()) / "run"
@@ -223,6 +228,60 @@ class TestArms(unittest.TestCase):
         self.assertEqual(r0[ft]["kind"], "numeric_slip")
         self.assertTrue(all(r["kind"] == "ok" for r in r0[ft + 1:]))
         self.assertTrue(all(r["prev"] == (r0[i - 1]["truth"] if i else 0) for i, r in enumerate(r0)))
+
+    # ---------------- Study 2 arms (prereg2.md)
+    def test_A1all_recomputes_every_turn(self):
+        rows, llm = self.run_arm("A1all", {self.fault_key: "slip"})
+        self.assertTrue(all(r["gate"]["fired"] and r["gate"]["reason"] == "always" for r in rows))
+        self.assertTrue(all(r["kind"] == "ok" for r in rows))           # the re-compute repairs the slip
+        self.assertEqual(sum("the total before this step is" in c for c in llm.calls), len(rows))
+
+    def test_A5_gate_and_fresh_audit(self):
+        # a confident slip passes the gate (tau below LP_SLIP) and is then repaired by the fresh audit
+        m = 4
+        rows, llm = self.run_arm("A5", {self.fault_key: "slip"}, m=m, tau=-10.0)
+        r0 = self.traj0(rows)
+        ft = self.fault_turn
+        self.assertFalse(r0[ft]["gate"]["fired"])
+        audit_turn = next(t for t in range(ft, self.T) if (t + 1) % m == 0)
+        self.assertEqual(r0[audit_turn]["audit"]["action"], "correct")
+        self.assertTrue(all(r["kind"] == "ok" for r in r0[audit_turn + 1:]))
+        audits = [c for c in llm.calls if "Audit." in c]
+        self.assertTrue(audits and all("Key: " not in c.split("Audit.")[0] for c in audits))  # fresh context
+        # a low-confidence slip is caught by the gate first
+        rows, _ = self.run_arm("A5", {self.fault_key: "slip"}, m=m, tau=-1.0)
+        r0 = self.traj0(rows)
+        self.assertEqual(r0[ft]["gate"]["reason"], "logit")
+        self.assertTrue(all(r["kind"] == "ok" for r in rows))
+
+    def test_T1_thinking_agent(self):
+        rows, llm = self.run_arm("T1", {self.fault_key: "slip"})
+        r0 = self.traj0(rows)
+        ft = self.fault_turn
+        self.assertEqual(r0[ft]["kind"], "numeric_slip")
+        self.assertTrue(all(r["kind"] == "inherited" for r in r0[ft + 1:]))
+        self.assertTrue(all(r["think_finished"] for r in rows))
+        agent_calls = [c for c in llm.calls if c.rstrip().endswith("<think>")]
+        self.assertEqual(len(agent_calls), len(rows))
+        # low-effort marker only on the current message; the history keeps the plain turn text
+        self.assertTrue(all(c.count("{reasoning effort: low}") == 1 for c in agent_calls))
+        self.assertTrue(all("reasoning</think>" not in c for c in agent_calls))   # past thinking not kept
+        rows, _ = self.run_arm("T1", {self.fault_key: "unfinished"})
+        r = self.traj0(rows)[ft]
+        self.assertFalse(r["think_finished"])
+        self.assertEqual(r["kind"], "nonanswer")
+
+    def test_bounded_fresh_sequences(self):
+        b = lhe_data.generate_fresh(range(5), 300, bound=300)
+        u = lhe_data.generate_fresh(range(5), 300)
+        self.assertTrue(all(abs(x.truth) <= 300 for t in b for x in t.turns))
+        self.assertTrue(all(t.sample_id >= lhe_data.BOUNDED_ID_OFFSET for t in b))
+        self.assertEqual([t.turns for t in u], [t.turns for t in lhe_data.generate_fresh(range(5), 300)])
+        self.assertEqual([t.turns for t in b], [t.turns for t in lhe_data.generate_fresh(range(5), 300, bound=300)])
+        tot = 0
+        for x in b[0].turns:
+            tot += x.value
+            self.assertEqual(x.truth, tot)
 
     def test_per_trajectory_save_and_resume(self):
         from src.agent import run
