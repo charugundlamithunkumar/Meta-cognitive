@@ -46,6 +46,15 @@ The accuracy CIs above come from figure bootstraps (2,000 resamples). Rates are 
 
 ![Accuracy by turn](figures/fig1_accuracy_by_turn.png)
 ![Error types](figures/fig3_error_types.png)
+![Error types by turn](figures/fig3b_error_types_by_turn.png)
+
+**Phase 4 quality checks:**
+- **Completeness.** Every arm has 32 × 300 rows and 0 non-answers, and each arm ran in one pass with no resume and no stitching.
+- **Consistency, checked on all 86,400 rows.** For every row:
+  - the truth equals the running sum of the dictionary values;
+  - the label agrees with the committed total;
+  - in D2, the state line equals the true total.
+- **Spot-check.** 18 random rows (2 per arm) were read by hand, including gate re-computes and audit corrections. All were consistent.
 
 ## 3. Per-hypothesis details
 

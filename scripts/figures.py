@@ -135,6 +135,30 @@ def fig_error_types(R, out):
     return share
 
 
+def fig_error_types_by_turn(R, out, w=10):
+    """Plan §7 Phase 5 figure 2: share of each error type vs. turn, one small panel per arm (10-turn windows)."""
+    kinds = [("ok", "ok", "#2a78d6"), ("inherited", "inherited", "#eb6834"), ("numeric_slip", "numeric slip", "#1baf7a")]
+    fig, axs = plt.subplots(3, 3, figsize=(11, 8), sharex=True, sharey=True)
+    x = np.arange(0, 300, w) + w / 2
+    for ax, arm in zip(axs.flat, ARMS):
+        ys = [[np.mean([r["kind"] == k for i in IDS for r in R[arm][i][t:t + w]]) for t in range(0, 300, w)]
+              for k, *_ in kinds]
+        ax.stackplot(x, ys, colors=[c for *_, c in kinds], labels=[l for _, l, _ in kinds], edgecolor=SURF, linewidth=0.8)
+        ax.set_title(NAME[arm], loc="left", fontsize=10)
+        ax.set_xlim(0, 300)
+        ax.set_ylim(0, 1)
+        ax.grid(False)
+    for ax in axs[-1]:
+        ax.set_xlabel("Turn")
+    for ax in axs[:, 0]:
+        ax.set_ylabel("Share of turns")
+    h, l = axs[0, 0].get_legend_handles_labels()
+    fig.legend(h, l, ncol=3, loc="upper center", bbox_to_anchor=(0.5, 1.0), fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    fig.savefig(out / "fig3b_error_types_by_turn.png", dpi=200)
+    plt.close(fig)
+
+
 def fig_auditor(R, out):
     fig, axs = plt.subplots(1, 2, figsize=(11, 4))
     xs = np.arange(4)
@@ -304,6 +328,7 @@ if __name__ == "__main__":
     summary = dict(
         accuracy_per_arm={a: dict(point=p, lo=l, hi=h) for a, p, l, h in fig_accuracy_per_arm(R, out)},
         error_type_shares=fig_error_types(R, out),
+        _error_types_by_turn=fig_error_types_by_turn(R, out),
         auditor=fig_auditor(R, out),
         hc_mae=fig_hc(R, out),
         logit_auroc=fig_auroc(R, out, main),
