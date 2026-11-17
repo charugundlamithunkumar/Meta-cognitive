@@ -1,0 +1,12 @@
+{
+  "name": "gpu1-long",
+  "calibration_only": true,
+  "util": 0.38,
+  "max_model_len": 6144,
+  "engine_settings": {
+    "enforce_eager": true,
+    "max_num_seqs": 1,
+    "max_num_batched_tokens": 512,
+    "enable_chunked_prefill": true
+  }
+}

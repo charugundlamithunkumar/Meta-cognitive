@@ -1,0 +1,122 @@
+{
+  "kind": "SYNTHETIC SIMULATION ONLY",
+  "n": 32,
+  "reps": 200,
+  "n_boot": 1000,
+  "sigma": 2.0,
+  "noise": "bounded uniform with SD sigma",
+  "variance_multiplier": 2.0,
+  "seed": 0,
+  "warning": "Not a sample-size guarantee. Out-of-bounds rejection conditions the simulated distribution; inspect counts and use smaller sigma near bounds. Calibration variance is uncertain.",
+  "scenarios": {
+    "dissociation": {
+      "valid_replicates": 200,
+      "rejected_out_of_bounds": 0,
+      "joint_support_rate": 1.0,
+      "mean_equivalence_CI_width": 3.2104901662802616,
+      "raw_rejection_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 1.0,
+        "HG4": 1.0
+      },
+      "holm_support_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 1.0,
+        "HG4": 1.0
+      }
+    },
+    "no_recovery": {
+      "valid_replicates": 200,
+      "rejected_out_of_bounds": 0,
+      "joint_support_rate": 0.0,
+      "mean_equivalence_CI_width": 3.1832435130014924,
+      "raw_rejection_rate": {
+        "HG1": 0.08,
+        "HG2": 0.0,
+        "HG3": 1.0,
+        "HG4": 0.07
+      },
+      "holm_support_rate": {
+        "HG1": 0.025,
+        "HG2": 0.0,
+        "HG3": 1.0,
+        "HG4": 0.035
+      }
+    },
+    "HG1_null": {
+      "valid_replicates": 200,
+      "rejected_out_of_bounds": 0,
+      "joint_support_rate": 0.02,
+      "mean_equivalence_CI_width": 3.2127414763363777,
+      "raw_rejection_rate": {
+        "HG1": 0.035,
+        "HG2": 1.0,
+        "HG3": 1.0,
+        "HG4": 1.0
+      },
+      "holm_support_rate": {
+        "HG1": 0.02,
+        "HG2": 1.0,
+        "HG3": 1.0,
+        "HG4": 1.0
+      }
+    },
+    "HG2_boundary": {
+      "valid_replicates": 200,
+      "rejected_out_of_bounds": 0,
+      "joint_support_rate": 0.08,
+      "mean_equivalence_CI_width": 3.192829217697076,
+      "raw_rejection_rate": {
+        "HG1": 1.0,
+        "HG2": 0.085,
+        "HG3": 1.0,
+        "HG4": 1.0
+      },
+      "holm_support_rate": {
+        "HG1": 1.0,
+        "HG2": 0.08,
+        "HG3": 1.0,
+        "HG4": 1.0
+      }
+    },
+    "HG3_boundary": {
+      "valid_replicates": 200,
+      "rejected_out_of_bounds": 0,
+      "joint_support_rate": 0.01,
+      "mean_equivalence_CI_width": 3.235499783246746,
+      "raw_rejection_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 0.04,
+        "HG4": 1.0
+      },
+      "holm_support_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 0.01,
+        "HG4": 1.0
+      }
+    },
+    "HG4_boundary": {
+      "valid_replicates": 200,
+      "rejected_out_of_bounds": 0,
+      "joint_support_rate": 0.045,
+      "mean_equivalence_CI_width": 3.1381668856454445,
+      "raw_rejection_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 1.0,
+        "HG4": 0.07
+      },
+      "holm_support_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 1.0,
+        "HG4": 0.045
+      }
+    }
+  },
+  "pilot_source": null
+}

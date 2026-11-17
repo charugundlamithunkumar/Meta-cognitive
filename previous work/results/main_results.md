@@ -102,7 +102,7 @@ Forecast MAE:
 
 - **Caveat: forecasts are close to 0 or 100.**
   - The realized next-10 accuracy is 0 at most checkpoints.
-  - So most of the effect is that the model forecasts about 0 when the true count says it is failing, and about 100 when it has no evidence.
+  - Across all 32 A0 trajectories, mean no-evidence forecasts at checkpoints 10, 25, 50, 100, 150, 200 and 250 are **90.625, 62.4375, 62.46875, 0, 3.125, 0 and 0%**, respectively. Thus “about 100” does not describe the full run; pessimism increases with position even without checker evidence. These all-checkpoint summaries differ from the 56 eligible checkpoints used for HC above. See [the exploratory metacognition analysis](meta_analysis.md) for counts, confidence intervals, and realized next-10 accuracy.
   - The placebo control shows the model reacts to the count itself, not just to being told a checker exists.
 
 ### HD: inheritance vs. context length

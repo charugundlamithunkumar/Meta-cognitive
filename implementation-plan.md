@@ -1,369 +1,512 @@
-# Implementation plan: Catching Silent Collapse
+# Implementation plan: current metacognition and recovery study
 
-**Project:** Can a long-horizon agent's working signals be used to stop its own decline?
-**Companion docs (in this folder):** `research-proposal.pdf` (problem statement, hypotheses HA–HE), `metacognitive-decay-report.md` and `findings-and-new-claim.md` (instructor's prior work, used **only as cited findings**).
-**Group setup:** three members, one model each, same dataset, splits, prompts, arms and metrics:
-- Qwen3-8B (teammate)
-- Llama (teammate)
-- **IBM Granite 4.2 8B (this plan)**
+**Project:** Catching Silent Collapse — Do LLM agents recognize failure and recovery?
 
-**Status:** Phases 0–1 complete (pilot summary: `results/pilot_summary.md`). Pre-registered (`prereg.md`). Next: main runs on test samples 20–51. Last updated 2026-11-13.
+**Updated:** 2026-11-18. The instructor accepted the recovery proposal. This file
+contains only the current M/HF and MR/HG implementation and experiment roadmap.
 
----
+**Start here:** Both calibrations are complete: M saved 392 conditions /
+3,920 real task answers; MR saved 224 / 2,240. CPU tests and context audits
+pass. Final runtime is `.38 / 6,144 / eager / one sequence / 512-token chunked
+prefill` on GPU 1. HF/HG protocols have been finalized for registration before
+main inference, keeping 32 ids and every original threshold. Main runs await
+the registration commit and approval of the measured roughly 90-minute budget.
 
-## 0. Ground rules
+**Local resources:** Granite 4.2 8B is downloaded in `models/granite-4.2-8b/`.
+Weights, tokenizer/template and pinned LHE data have CPU checksum manifests.
 
-1. **Self-contained.** All code, data, model weights, runs and results live under `/home/viswanath/mithun`. We do **not** read, import, copy or run anything from any other folder (including the instructor's experiment directory). We cite his two markdown files only as prior findings.
-2. **One dataset:** Long-Horizon-Execution (LHE), §2. No other datasets.
-3. **Honest numbers.** Every number we report comes from our own runs. Numbers quoted from the instructor's files are labelled as his.
-4. **Pre-register before main runs.** We fix hypotheses, metrics, thresholds, seeds and sample ids in `prereg.md` and commit them to git before Phase 4.
-5. **Never overwrite a run.** Each run writes to a new `runs/<arm>_<timestamp>/` folder with its config.
+**Execution from here:** finish registration commit → approved main M then MR
+collection → automatic paired analysis and figures → independent confirmation
+if feasible. `scripts/run_registered_meta.py` prepares that sequential queue,
+with persistent status, checkpoints, logs and source/config guards. A null
+result never cancels the other study. Check available GPU memory first.
 
----
-
-## 1. Folder layout (to be created in Phase 0)
-
-```
-mithun/
-├── implementation-plan.md      ← this file
-├── research-proposal.pdf
-├── prereg.md                   ← Phase 3
-├── requirements.txt            ← pinned versions
-├── data/lhe/                   ← vendored dataset + SHA256SUMS + SOURCE.md
-├── models/                     ← Granite 4.2 8B weights (git-ignored)
-├── src/
-│   ├── lhe_data.py             ← load, verify checksums, split, group K keys/turn
-│   ├── prompts.py              ← every prompt string, in one place
-│   ├── agent.py                ← the turn loop (vLLM), history handling, logging
-│   ├── gates.py                ← A1a / A1b / A2 re-compute gates
-│   ├── audit.py                ← A3 / A4 auditors
-│   ├── compaction.py           ← D1 / D2 state-table contexts
-│   ├── probes.py               ← forked probes: P(Yes), verbal, forecast (HC)
-│   ├── labels.py               ← error taxonomy (§4)
-│   ├── metrics.py              ← AUROC, J, accuracy, run lengths
-│   └── stats.py                ← paired bootstrap, Holm correction
-├── scripts/                    ← run_arm.py, pilot.py, analyze.py, make_figs.py
-├── configs/                    ← one JSON per arm
-├── tests/                      ← unit tests (no GPU)
-├── runs/                       ← raw outputs (one folder per run)
-└── results/                    ← tables and figures
-```
+**Current documents:** [accepted proposal](after-the-fix-problem-statement.pdf),
+[M guide](METACOGNITION.md), [HF registration](prereg.md).
+All old implementation plans are inside [previous work](previous%20work/README.md).
+The completed study is background evidence; its protocols are not active run instructions.
 
 ---
 
-## 2. Dataset: Long-Horizon-Execution (the one dataset)
+## 1. Scope, questions and current readiness
 
-| | |
-|---|---|
-| Source | Sinha, Arun, Goel, Staab, Geiping, *The Illusion of Diminishing Returns: Measuring Long Horizon Execution in LLMs*, ICLR 2026 ([arXiv 2509.09677](https://arxiv.org/abs/2509.09677)) |
-| Hugging Face | `arvindh75/Long-Horizon-Execution` · **pinned revision `7e4901fbb42b88144a65782052d0c8d87a358edc`** |
-| Licence | **Apache-2.0** (free use and redistribution, with citation) |
-| Task | Running-sum execution: a dictionary maps 100 five-letter words to integers; each turn gives a key; the model adds its value to a running total that starts at 0 and replies with the new total |
-| Contents | `dictionary.json` (100 keys, values −99…97, 76 distinct values), `test.jsonl` (100 samples × 50,000 turns; fields `id`, `input`, `values`, `output`), `config.json` |
-| Ground truth | Exact running total at every turn |
+Instructor acceptance is reported by the user on 2026-11-17. This authorizes
+preparation of the accepted study; it is not a report of successful experiments
+or a reserved GPU budget. The approved question is documented in
+[`after-the-fix-problem-statement.md`](after-the-fix-problem-statement.md).
 
-**Integrity check we ran (2026-11-13):**
-- 0 of 100 samples have a value that disagrees with the dictionary.
-- 0 of 100 samples have an `output` that differs from the cumulative sum of `values` starting at 0.
-- The maximum |total| over the first 300 turns is 3,528, so totals are 1–4-digit numbers.
-
-**SHA-256 checksums (for `data/lhe/SHA256SUMS`):**
-```
-33d783c31d664d791a6ff08671b86775cac681768d2853987d528c30457c017e  dictionary.json
-111ef6e3850368efd84175576c279aeba36ddfb20da3582c01a078bfa77620c6  test.jsonl
-0cc5df39a45c71d1044e197f660045de09922d74011efa0c688a658c72aa4656  config.json
-```
-
-**Why this dataset will not cause problems later:**
-- **Licence:** Apache-2.0, so there are no restrictions on use or redistribution for coursework or a paper.
-- **Availability:**
-  - We pin the exact revision and vendor a copy in `data/lhe/` with checksums.
-  - The loader refuses to run if a checksum differs.
-  - If Hugging Face ever removes the dataset, our copy and the paper's description are enough to regenerate it.
-- **Contamination:** the data is synthetic (random key sequences). However, the samples were published (Sept 2025) **before** Granite 4.2 (Aug 2026), so we cannot rule out by date alone that they were in its training data. **Check in Phase 1:** run A0 on freshly generated sequences (same dictionary, keys drawn uniformly at random with our own seeds) and compare the per-turn slip rate with the published calibration samples. A clearly lower slip rate on the published samples would indicate memorization. In that case we switch all runs to fresh sequences (`data/lhe/` stays the source of the dictionary).
-- **Ground truth:** exact and machine-checkable. No human labels, no annotator disagreement.
-- **Size:** 50,000 turns per sample is far more than we need, so we never run out of horizon.
-- **Peer reviewed and directly relevant:** its paper is the source of the "self-conditioning" finding that the instructor's report builds on.
-
-**Splits (fixed now, never changed):**
-
-| Split | Sample ids | Use |
+| Stage | Question | Existing evidence / remaining work |
 |---|---|---|
-| Calibration | 0–19 | Pilot: choose K, T, τ, m. Never used for hypothesis tests |
-| Test | 20–51 | All main runs (32 trajectories per arm, the same ids in every arm, so comparisons are paired) |
-| Reserve | 52–99 | Untouched; replication or extra power if needed |
+| A0, exploratory | What changes as execution collapses? | Existing 32 × 300 results and `results/meta_analysis.{md,json}`; preserve them. |
+| M, HF | How do history length and injected error dose affect reports and next-10 accuracy? | Seven configs, runner, analysis and tests exist. Registration commit and real runs remain. Follow `prereg.md` §7 and `METACOGNITION.md`. |
+| MR, new HG | When current state is repaired, does execution recover and do forecasts reflect that recovery? | Draft HG written before analysis code; four-arm runner, analysis and CPU tests implemented. Real calibration and main inference pending. |
+| Confirmation | Does the finding repeat on unused sequences or another model? | Audit sample allocations first. Separate manifest, registration and budget; not a prerequisite for reporting an inconclusive first study. |
 
-We use only the first T turns of each sample (T is chosen in the pilot; planned T = 300). Turn complexity K is also chosen in the pilot. K > 1 groups K consecutive keys per turn, and the target is the last running total of the group, as the dataset card specifies.
+**Primary scope:** Granite 4.2 8B, LHE running sum, K=1, T=300, the existing
+dictionary, non-thinking greedy continuation and independent probe forks.
+The core paper combines A0 motivation, M identification and MR recovery.
+The completed intervention study is archived; this plan covers M and MR.
 
----
+**Protection:** no changes to or re-runs of A0–D2, their registered source,
+configs, archives or results. Do not delete local weights to free space. Keep
+HF separate from HG; additional controls get new names and registrations.
+Never send results to the instructor or publish them without an instruction.
 
-## 3. Model and environment
+### 1.1 M: direct test of the instructor’s question
 
-| Item | Choice |
+M asks whether pessimistic self-reports respond to history length, historical
+errors, or both. Reuse `scripts/run_meta.py`, its seven existing configs and
+`scripts/analyze_meta_experiment.py`. The authoritative hypothesis and decision
+rule are in `prereg.md` §7; do not change them through this plan.
+
+| Arms | Supplied history |
 |---|---|
-| Model | **IBM Granite 4.2 8B** (`ibm-granite/granite-4.2-8b`; Apache-2.0; no download approval needed; 8.79 B parameters; dense; released Aug 2026), pinned revision `a7042144125ce5ae64f89610e8289647fc000b9a`, bf16 |
-| Why this model | A different family from the group's other two models (Qwen3-8B, Llama) at the same size class (about 8B), so differences between members come from the family, not size. Thinking switches on/off **in the same model**, so A3/A4 audits are still the model checking itself. Small models are a poor fit: the instructor's files show 4B is at the floor. |
-| Mode | Non-thinking for the agent (`enable_thinking=False`). Thinking only inside A3/A4 audits (`enable_thinking=True`) |
-| Decoding | Agent: greedy (temperature 0), maximum reply 16 tokens, top-20 logprobs saved. Thinking audits: the model card's recommended sampling (temperature 1.0, top-p 0.95), seeded per (trajectory, turn) |
-| Chat format | Derived automatically from the model's official chat template (`src/agent.py: Chat`); a unit test checks it matches `apply_chat_template` exactly in both modes |
-| Tokenization note | Granite splits numbers into multi-digit chunks (e.g. `-1523` → `-`, `15`, `23`), unlike Qwen's one digit per token. Logit statistics are computed over the tokens of the reported integer, whatever the chunking |
-| Inference | vLLM 0.24.0 with prefix caching; torch 2.11.0; transformers 5.12.1 (already installed on this machine; versions pinned in `requirements.txt`). `GraniteForCausalLM` is supported by this vLLM |
-| Weights location | `mithun/models/granite-4.2-8b` (about 17.6 GB) |
-| GPU | **GPU 0** (RTX 6000 Ada, 48 GB). Set `CUDA_DEVICE_ORDER=PCI_BUS_ID` because the GPUs on this machine are of different models. |
+| M_L0, M_L25, M_L50, M_L75, M_L100 | Entire prefix with 0/25/50/75/100% wrong totals. |
+| M_S0, M_S100 | Exact last-five-turn suffix of the corresponding long history. |
 
----
+Use ids 20–51, seven checkpoints, the existing +1 generator, unchanged probes
+and independently generated next-ten answers. Primary confidence contrasts are
+length and intermediate-dose effects; the L100 endpoint is descriptive when
+performance reaches a floor. Use the existing paired trajectory bootstrap and
+HF Holm family. Short history also removes reconstruction evidence, so its
+effect cannot be interpreted as token length alone. Report forecasts against
+actual accuracy and distinguish global correctness from local slips.
 
-## 4. Error taxonomy (implemented in `src/labels.py`)
+The A0 exploratory analysis in `results/meta_analysis.md` supplies motivation;
+raw A0 archives reside in `previous work/results/`. M identifies responses to
+controlled histories; MR then tests whether reports update after state repair.
+Both studies must report their full outcomes, including null or floor-limited
+results. The MR design must be frozen before examining either main study’s outcomes.
 
-For every turn t:
-- `prev` = the total the agent should build on: its last committed total, or the latest correction it was given (A3/A4).
-- `v` = the true value of the key(s).
-- `truth` = the true running total.
+## 2. Resource and provenance gate
 
-| Label | Rule |
-|---|---|
-| `ok` | The committed total equals `truth` |
-| `nonanswer` | The reply is not a well-formed integer |
-| `inherited` | Well-formed, equals `prev + v`, but `prev` was already wrong (so ≠ `truth`) |
-| `numeric_slip` | Well-formed and ≠ `prev + v`. This is a fresh mistake made at this step |
-| ↳ `retrieval_like` *(exploratory)* | A numeric slip that equals `prev + v′` for some other dictionary value v′ ≠ v |
+Use `models/granite-4.2-8b`, configured revision
+`a7042144125ce5ae64f89610e8289647fc000b9a`, and local data revision
+`7e4901fbb42b88144a65782052d0c8d87a358edc`. Dataset checksums and the existing
+57-test CPU suite passed after implementation and precision validation. Do not equate configured revision
+with independently verified downloaded weight contents.
 
-Caveat for `retrieval_like`: 76 distinct dictionary values cover much of −99…99, so some arithmetic slips will match by chance. We report the chance rate alongside it and **do not** use it for any primary test.
+Before inference, record an MR manifest containing model/config/tokenizer and
+weight-shard SHA-256 hashes, data hashes, source/config hashes, registration
+commit, Python/library versions, GPU model and driver, decoding settings,
+sample ids, checkpoints, mask seed, arm order and output path. Compute weight
+hashes on CPU once and retain the manifest; no network download is needed.
+Load the tokenizer with `local_files_only=True` and the model from its local path.
 
-Every `inherited` error has a **seed**: the most recent `numeric_slip` or `nonanswer` that started the chain of wrong totals. `labels.py` records the seed turn for each inherited error, which is what HA's upper-bound analysis needs.
+Check GPU availability, free disk and context length immediately before a run;
+check process ownership before loading a model on the shared GPU.
+Retain bf16, configured memory utilization 0.6 and max context 16,384 unless a
+calibration-only amendment is necessary. Never truncate history silently.
+Instructor acceptance does not waive the user's requirement to approve GPU runs.
 
-**Key property of this dataset:** there is one running total, so after a seed error *every* later turn is wrong compared with the truth until the error is repaired. Accuracy over the last 50 turns would therefore sit at the floor in every arm. **The primary end-to-end metric is accuracy over all T turns** (see §8). This is a deliberate change from the "last-50" wording in the proposal PDF.
+## 3. MR history construction and four arms
 
----
+At each zero-based checkpoint c in `{10,25,50,100,150,200,250}`, use task
+positions 0…c as history and c+1…c+10 as the continuation. Each branch is
+independent; generated answers at one checkpoint do not enter another.
 
-## 5. Prompts (in `src/prompts.py`; final wording frozen in `prereg.md`)
+1. Build H_clean with every assistant total equal to truth.
+2. Build H_error with exactly `floor(0.5*c + 0.5)` wrong totals among positions
+   0…c−1, plus a forced wrong answer at c. Shuffle earlier positions with
+   `Random(seed*1000003 + sample_id*10007 + c)`, seed 0, and select that count.
+   The earlier-error rate excludes the forced endpoint; record both rates.
+3. Obtain every wrong total from the approved existing +1 generator through
+   `src/meta_history.py:numeric_slip`. Verify every injected value differs from
+   truth. Do not substitute random offsets or change the generator for HG.
+4. Cross history with the supplied continuation state s, independently:
 
-- **Agent system prompt:** "You are an execution agent. Keep a running total that starts at 0. Dictionary (key: value): {100 lines}. Each turn I send one key. Look up its value, add it to the running total, and reply with ONLY the new running total as a single integer. Example: if the total is 120 and the key's value is −45, reply: 75."
-- **Agent turn:** `Key: {w}` (or `Keys: w1, w2, …` for K > 1).
-- **In-line format (HE only):** the reply must be `<total> | <confidence 0–100>`, with **no numeric confidence example** in the prompt. The instructor's E8 shows that models copy example values.
-- **Forked probes**, asked in a side copy of the context so the main history is unchanged:
-  - P(Yes): "Is the running total you just reported exactly correct? Answer Yes or No."
-  - Verbal: "How confident are you, from 0 to 100, …? Reply with only a number."
-  - Forecast: "Over your next 10 turns, what percentage of your running totals do you expect to be exactly correct?"
-  - Awareness: "Compared with the start, is your accuracy now A) higher, B) about the same, C) lower?"
-- **Re-compute (A1a/A1b/A2), in a fresh context:** dictionary + "Current total: {prev}. Key: {w}. Reply with ONLY the new total."
-- **Audit (A3 fresh / A4 in-context), thinking on:** "Verified total after turn {t0}: {V}. Keys since then: {w…}. The reported total after turn {t} is {R}. Recompute from {V}. End with `VERDICT: CORRECT` or `VERDICT: WRONG, total = N`." A3 asks this in a fresh context with the dictionary; A4 appends the identical text to the full history.
-- **Correction message (A3/A4):** prepended to the next turn: "Note: an independent check found the running total after turn {t} should be {N}. Continue from that total. Key: {w}."
-- **HC evidence line**, prepended to the forecast probe:
-  - *true:* "An independent checker recomputed your last 10 totals and found {N} wrong."
-  - *placebo:* the same sentence with N taken from a different trajectory at the same checkpoint.
-  - *none:* the line is omitted.
-
----
-
-## 6. Arms
-
-All arms use the test ids 20–51, the same K and T, and the same prompts except for what the arm changes.
-
-| Arm | What the code does | Hypothesis |
-|---|---|---|
-| **A0** | Baseline loop. Logs logits, P(Yes), verbal confidence, and HC probes at checkpoints {10, 25, 50, 100, 150, 200, 250} | Reference, HC |
-| **A0-inline** | A0 with `total \| confidence` replies; saves **per-token** logprobs | HE |
-| **A1a** | If the reply is malformed → re-compute; the re-computed total is committed in place of the reply | HA control |
-| **A1b** | Malformed **or** `min answer-token logprob < τ` → re-compute | **HA** |
-| **A2** | Malformed **or** a random trigger with probability = A1b's realized trigger rate (so A2 runs after A1b) | HA compute control |
-| **A3** | Every m turns: fresh-context audit of the last m keys from the last verified total V. If the verdict is WRONG → correction message, and V updates to the auditor's total | **HB** |
-| **A4** | Same audit and correction, but asked inside the full history | HB contrast |
-| **D1** | No history: each turn's context is the system prompt + "Your current total: {agent's own last total}" + the key | **HD** |
-| **D2** | Same as D1 with the **true** total (oracle control) | HD control |
-
-HC uses the probes in A0. A3 adds a second evidence source (auditor flags). HE uses A0-inline; the bare-number logits come from A0.
-
-**What we log per turn** (one JSON row):
-- Sample id, turn, key(s), true value, truth, prev.
-- Raw reply, parsed reply, well-formed flag, committed total, label, seed turn.
-- Logit statistics: min/mean logprob, max entropy, min margin, and per-token logprobs.
-- Probe outputs.
-- Gate fired / reason / re-compute reply.
-- Audit verdict / auditor total / thinking tokens / unfinished flag.
-- Tokens used.
-
----
-
-## 7. Phases and timeline (about 3 weeks)
-
-### Phase 0: Setup (days 1–2)
-1. Run `git init` and add `.gitignore` (models/, runs/ raw).
-2. Vendor the LHE files into `data/lhe/` at the pinned revision; write `SHA256SUMS` and `SOURCE.md` (citation, licence, revision).
-3. Download Granite 4.2 8B at the pinned revision into `models/granite-4.2-8b` *(approved)*.
-4. Write `lhe_data.py`, `labels.py`, `metrics.py` and `stats.py` with **unit tests that need no GPU**:
-   - The loader rejects a corrupted file.
-   - The labeller gets hand-built cases right (a planted slip followed by inherited errors, a non-answer, a correction mid-chain).
-   - AUROC, J and bootstrap match `sklearn` / known values.
-5. Write `agent.py` (A0) and run a smoke test on 2 trajectories × 20 turns.
-6. **Prompt check (calibration ids only):** confirm the model replies with the running total, not the key's value. This was added after the Phase 0 smoke test exposed the problem (§13). Freeze the chosen prompt version.
-
-**Gate G0:** the tests pass, and the smoke run produces parsed replies and logged logits, with the model doing the actual task (replying with the running total).
-
-### Phase 1: Pilot on calibration ids 0–19 (days 3–4)
-1. **Choose K and T.** Run A0 at K ∈ {1, 2, 5}, T = 300. Choose the smallest K for which the calibration set has **at least 15 numeric slips in each position bin** (needed for a stable AUROC) and the model is not at 100% local accuracy. If K=1 already qualifies, use K=1.
-2. **Choose τ.** On the calibration A0 run, τ = the `min logprob` threshold that maximizes J (TPR − FPR) for numeric slips vs. ok. Record the expected trigger rate.
-3. **Choose m.** Use m = 5 (chain length 5; the instructor's E4b gives J = 0.86 at k=5, N=30 on his task). Confirm on calibration that A3 audits finish within the thinking budget (2,048 tokens). If more than 10% are unfinished, raise the budget.
-4. **Contamination check (§2):** run A0 on 20 freshly generated sequences (same dictionary, uniformly random keys, our own seeds) and compare the per-turn slip rate with calibration ids 0–19.
-5. **HA upper bound, offline on pilot rows:**
-   - What share of inherited errors trace back to a seed that A1a would catch? What share would A1b catch?
-   - If A1b adds almost nothing over A1a, we record that HA is expected to fail on the "logits add value" criterion, and still run it (a null result is informative).
-
-**Gate G1:** K, T, τ and m are fixed, and enough slips exist. If Granite 4.2 8B makes almost no slips even at K=5, raise T to 600 before changing anything else.
-
-### Phase 2: Build the intervention arms (days 5–7)
-- Write `gates.py`, `audit.py`, `compaction.py` and `probes.py`.
-- **Forced tests:**
-  - A1: inject a malformed reply → the gate fires and the committed total is correct.
-  - A3: inject a wrong total → the auditor gets the planted error and the correction message appears in the next turn.
-  - D1/D2: the state line shows the expected total.
-- Run each arm as a smoke test on calibration ids only.
-
-### Phase 3: Pre-register (day 8)
-- Write `prereg.md`: hypotheses, primary and secondary metrics, every threshold below, K/T/τ/m, test ids, exclusion rules, and the analysis script, already tested on pilot data.
-- **Commit to git before any test-id run.**
-
-### Phase 4: Main runs on test ids 20–51 (days 9–11)
-- Order: A0 → A0-inline → A1a → A1b → A2 (needs A1b's rate) → A3 → A4 → D1 → D2.
-- **Quality checks after each run:**
-  - 32 trajectories × T turns present.
-  - Share of non-answers.
-  - Gate trigger rate.
-  - Share of unfinished audits.
-  - Spot-check 20 random rows by hand.
-- If a run crashes, rerun the **whole** arm into a new folder; never stitch partial runs together.
-
-### Phase 5: Analysis (days 12–15)
-- Write `analyze.py` and `make_figs.py`, using the pre-registered tests only. Anything else is labelled *exploratory*.
-- Figures:
-  1. Accuracy vs. turn for each arm.
-  2. Share of each error type vs. turn for each arm.
-  3. Auditor J by position bin, A3 vs. A4.
-  4. Forecast vs. realized accuracy for each HC evidence condition.
-  5. Logit AUROC by format and scoring rule (HE).
-
-### Phase 6: Write-up and instructor review (days 16–18, plus buffer)
-- A short report: results per hypothesis (supported / falsified / inconclusive), limitations, and the next step.
-
----
-
-## 8. Metrics and pre-registered decision rules
-
-**Unit of analysis:** the trajectory.
-- Paired bootstrap over the 32 test ids: 10,000 resamples, 95% CI.
-- Holm correction across the five primary tests.
-- Position bins: turns 0–49, 50–99, 100–199, 200–299 (rescaled if T ≠ 300).
-
-**Primary metric per hypothesis**
-
-| | Primary metric | Supported if | Falsified if |
+| Arm | Identical history shared with | History | State s supplied once |
 |---|---|---|---|
-| **HA** | Accuracy vs. truth over all T turns | A1b − A2 > 0 **and** A1b − A1a > 0 (paired CI excludes 0), and the **number of error chains (seed slips) per trajectory** is lower in A1b than in A2 and A1a | Either difference's CI includes 0, or the live gate's numeric-slip AUROC is near 0.5 |
-| **HB** | Auditor J per position bin; accuracy over all T | A3's J in the last bin is within the CI of its first bin, A4's J declines (last-bin CI below first-bin CI), and A3 > A0 on accuracy | A3's J also declines, or A3 − A0 has a CI that includes 0 |
-| **HC** | Mean absolute forecast error and the forecast–realized correlation, at checkpoints where true ≠ placebo count | With true evidence: lower error and positive correlation vs. both *none* and *placebo* | Forecast stays ≈ 100 with true evidence, or true ≈ placebo |
-| **HD** | Accuracy over all T; slip rate before vs. after the first error | D1 within ±0.05 of A0 on accuracy (pre-registered margin; equivalence test), and D2's accuracy slope over turns ≈ 0 | D1 − A0 > 0.05 (CI excludes the margin): length or self-conditioning then matter for the collapse |
-| **HE** | Logit AUROC for numeric slips vs. ok: A0 (bare), A0-inline all tokens before `\|`, A0-inline final-integer tokens only | *Conditional:* if A0-inline (all tokens) is lower than A0, final-integer scoring brings it back inside A0's CI | Final-integer AUROC stays below A0's CI. If A0-inline is **not** lower than A0, HE is recorded as "discrepancy not reproduced on this task" |
+| MR_A | MR_D | H_clean | True total T_c |
+| MR_B | MR_C | H_error | Wrong total from the existing +1 generator at c |
+| MR_C | MR_B | H_error, including wrong endpoint | True total T_c |
+| MR_D | MR_A | H_clean | Wrong total from the existing +1 generator at c |
 
-**Secondary metrics:**
-- Turns until the first error.
-- Mean length of a run of wrong totals (turns until repair).
-- Gate recall and false-trigger rate.
-- Auditor TPR/FPR.
-- Extra tokens per turn (cost).
-- AUROC of P(Yes) and verbal confidence (does the instructor's "verbal confidence is uninformative" finding hold on a second task?).
+This crosses **historical error exposure** with **supplied current-state
+correctness**. It does not independently cross the final history answer with
+all earlier errors: that final answer is part of H_clean/H_error. Describe this
+precisely when interpreting effects.
 
-**HD decomposition (secondary, on this dataset):**
-- A0 vs. D1 slip rate **before the first error** isolates pure context length (no errors in context yet).
-- **After the first error**, the difference also includes self-conditioning (Sinha et al.).
-- The carried wrong total isolates inheritance.
+Freeze the neutral cue in new `src/recovery_prompts.py`, initially:
+`Continue using this current running total: {s}.`
+Use identical wording for all four arms; never describe the wrong value as
+verified. Preserve the full history and system prompt in every arm. Record
+input tokens, numeric magnitude/width, sign and correction-transition counts.
+Same turn count does not imply exact token-count equality. No extra padding,
+thinking, reset or continuous state correction belongs in the primary design.
 
----
+## 4. Probe placement, continuation and correctness
 
-## 9. Compute budget
+Use the existing forecast text from `src/prompts.py:P_FORECAST`. The outcome is
+the **percentage of ten globally correct totals**, not the probability that
+all ten answers are correct. Save these distinct forks:
 
-- Plain loops are short: 32 trajectories × 300 turns, with prompts of a few thousand tokens and prefix caching.
-- The costly parts are the thinking audits (A3/A4) and forked probes. We measure wall time in the pilot and record it in `prereg.md`.
-- If one arm takes more than 2 hours, we drop A0's per-turn verbal probe first (it is the least important signal).
+- **Pre-cue forecast:** append the forecast question to H alone. A/D and B/C
+  can share this deterministic fork only when their exact prefix hashes match.
+- **Post-cue forecast (primary):** append one user message containing the state
+  cue, newline, then P_FORECAST to H. Do not add an invented assistant
+  acknowledgement. This asks about future execution from the supplied state.
+- **Task continuation:** independently append one user message containing the
+  same cue, newline, then the actual keys at c+1. Generate ten totals. Later
+  user messages contain only their keys. The cue appears exactly once.
+- **Answer probes:** after each newly generated total, fork unchanged verbal
+  confidence and P(Yes). Fork awareness after the tenth generated answer; its
+  question about “these turns” then follows observed continuation behavior.
+  Record its exact placement; it is not a probability of future success.
 
----
+Never append a probe question or answer to the task continuation. Pre-cue and
+post-cue forecasts are separate branches. Verbal confidence about an old,
+teacher-forced answer is not the primary recovery measure.
 
-## 10. Risk register
+**Critical label rule:** for the first generated step, `prev = s`, including
+in MR_C and MR_D, rather than the last displayed history total. Thereafter
+reuse `next_prev` on actual committed answers. Global truth remains the
+original LHE cumulative sum; a cue never changes ground truth. Apply existing
+`label_turn` and answer-token extraction. A malformed answer is incorrect,
+not a missing or silently retried execution outcome.
 
-| Risk | Likelihood | Mitigation |
+Store raw numeric probes and the legacy clipped [0,100] value, with explicit
+parse and out-of-range flags. HG must freeze this preprocessing before runs.
+Missing primary forecasts make the full primary verdict unavailable until a
+technical failure is resolved; do not silently drop trajectories or fill zero.
+Record unavailable Yes/No or A/B/C probability mass rather than interpreting
+zero retained top-k mass as confident evidence. This affects secondary probes,
+not the numeric forecast primary outcome.
+
+## 5. HG hypotheses and analysis contract
+
+**First implementation deliverable:** `prereg_recovery.md`, separate from
+HA–HF. Write its draft before `scripts/analyze_recovery.py`. Include all
+estimands, preprocessing, exact test algorithms, seeds, sample manifests,
+missingness rules, stopping rules and the floor rule. Finalize after calibration
+and commit before any test inference. Calibration changes are dated amendments;
+never adapt thresholds using A0 test outcomes or forthcoming M/MR test results.
+
+For each arm, R is next-10 accuracy ×100 and F is the post-cue forecast.
+Compute contrasts per trajectory by averaging all seven checkpoints equally,
+then average the trajectory contrasts equally. Each trajectory is one paired
+sampling unit; 224 checkpoints are not 224 independent observations.
+
+| Hypothesis | Required effect | Reason |
 |---|---|---|
-| Granite 4.2 8B almost never slips at K=1 | Medium | Pilot grid over K, then T (Gate G1) |
-| Granite misreads the task (replies with the key's value) | Seen with the first prompt on Qwen3-8B | Prompt check on calibration ids (Phase 0 step 6) |
-| Published samples memorized (Granite released after the dataset) | Low | Fresh-sequence check in Phase 1 (§2) |
-| Granite is primarily a reasoning model; its non-thinking answers may be weaker | Medium | That is a property of the model to report, not a flaw. The pilot shows whether the slip rate is in a usable range |
-| Logit signal weak on this task | Medium | It's a valid finding (HA falsified on that criterion). The A1a/A2 controls keep the comparison fair |
-| Re-compute repeats the slip | Medium | Fresh context; log re-compute accuracy |
-| Auditor wrongly corrects a right total, which starts a new chain of wrong totals | Medium | Report auditor FPR. V only updates from audits, so the damage is measurable |
-| Thinking audits run out of budget | Medium | Pilot check; raise the budget; report the unfinished share and exclude nothing silently |
-| HC: the model copies the number given | Medium | Give a count, not an accuracy; placebo condition |
-| Floor effect: one chain means everything after a slip is wrong | Certain | Primary metric is accuracy over all T turns, not the last 50 |
-| `retrieval_like` labels are ambiguous | Certain | Exploratory only; report the chance rate |
-| GPU shared with other users | High | Confirm GPU (§12); keep memory utilisation ≤ 0.6; runs restart cleanly |
-| Disk nearly full (`/home` 96% used) | Medium | Weights about 16 GB; raw rows compressed; delete weights at the end |
-| Results differ across vLLM batch sizes | Low | Fixed batch size per arm; same ids in every arm |
-| Scooping (fast-moving field) | Medium | Pre-register early; ask the instructor about posting a short write-up |
+| HG1 | R_C − R_B > 0 | Demonstrate actual benefit from repairing state. |
+| HG2 | R_C − R_A equivalent within (−5,+5) percentage points | Demonstrate recovery near the clean reference, rather than infer equivalence from non-significance. |
+| HG3 | F_A − F_C > 10 percentage points | Detect persistently lower forecasts at comparable performance. |
+| HG4 | R_C − F_C > 10 percentage points | Establish actual underconfidence; a gap from an overconfident baseline is insufficient. |
 
----
+Use 10,000 bootstrap resamples of complete paired trajectories, NumPy seed 0,
+keeping all checkpoints/arms together and reusing resample indices across
+contrasts. Report 95% percentile intervals and a 90% interval for equivalence.
+Holm-adjust the four HG p-values at alpha .05, separately from HF and HA–HE.
+All four adjusted tests must pass, with their practical margins, to support
+the primary recovery/report dissociation. Margins are the accepted proposal's
+values; a change requires an explicit pre-test amendment, not hidden tuning.
 
-## 11. Deliverables
+**Proposed exact p-value implementation to freeze in HG:** for observed mean
+contrast d and bootstrap means d*, form e*=d*−d. A one-sided superiority test
+against m uses `(1 + count(e* >= d-m))/(B+1)`. The lower equivalence test uses
+m=−5; the upper test uses `(1 + count(e* <= d-5))/(B+1)`. The equivalence
+p-value is their maximum. Use inclusive comparisons and B=10,000; never print
+zero p-values. Validate null behavior and boundaries with synthetic simulation
+before registration. These are approximate bootstrap tests, not exact
+finite-sample tests. Reuse `src/stats.py:holm`; do not modify frozen Study-1
+statistics or silently reuse HF's different p-value procedure for HG.
 
-1. `prereg.md` (git-committed before main runs).
-2. Code in `src/` and `scripts/` with passing tests; one command reproduces each arm from its config.
-3. `runs/` raw rows for all arms; `results/` tables and five figures.
-4. Short report: per-hypothesis verdicts with CIs, limitations, and the comparison with the instructor's ledger findings (a second task family).
+**Floor gate:** report mean accuracy by arm/checkpoint and across all
+checkpoints. If either A or C has overall mean accuracy ≤5%, withhold a
+recovery-recognition verdict as floor-limited. Otherwise include all checkpoints
+in the primary analysis, even individually floor-limited ones. Show the late
+curves explicitly; a pooled result is not proof of late-checkpoint recovery.
 
----
+**Interpretation:** all criteria passing supports the specified behavioral
+dissociation, not an internal mechanism. Failure of HG1 or inability to establish
+HG2 leaves recovery recognition unresolved. Non-significance does not establish
+appropriate updating; that claim would require a separately specified
+equivalence test for calibration error. Report reversed and uncertain effects.
+Do not select only trajectories that recovered or stop early for significance.
 
-## 12. Decisions needed before Phase 0
+Secondary outputs: pre/post forecast change; forecast MAE and calibration slope
+with checkpoint effects and trajectory intervals; per-arm/checkpoint curves;
+the accuracy and forecast history×state interactions; awareness probabilities;
+and generated-step AUROC for verbal/P(Yes)/token scores. Report global
+correctness and local-slip targets separately, on common observations, holding
+checkpoint and continuation offset fixed. Require the existing minimum of 15
+observations per class; report unidentifiable cells and degenerate regressions.
+Teacher-forced prefix values have no model logits and never enter AUROC.
+Secondary findings do not rescue a failed primary decision.
 
-1. **Approve downloading** the model into `mithun/models/`.
-2. **Which GPU** to use on this shared machine (at the time of writing, GPU 0, an RTX 6000 Ada with 48 GB, was almost idle; GPU 2 was busy).
-3. **Correction style:** A1 replaces the reply before it enters the history, and A3/A4 add a correction note to the next turn (the default above). Keep this, or use one style everywhere?
-4. **Scope:** all nine arms, or the core (A0, A1a, A1b, A2, A3, A4) plus A0-inline, with D1/D2 only if time allows?
-5. Confirm with the instructor that the switch from "last-50 accuracy" to "accuracy over all T turns" (forced by the single running total in this dataset) is acceptable.
+## 6. Implementation units and reuse boundaries
 
-**Resolved 2026-11-13:**
-- GPU 0 (RTX 6000 Ada).
-- Model: **Granite 4.2 8B**, download approved. The instructor assigned one model per group member; Qwen3-8B and Llama are taken by teammates.
-- Correction style and scope: defaults above (A1 replaces the reply; A3/A4 add a correction note to the next turn; all arms, with D1/D2 last).
+The following MR paths are **implemented**. CPU/mock paths have been exercised;
+the real GPU inference path still requires calibration validation:
 
----
+| New file / artifact | Responsibility and reuse |
+|---|---|
+| `prereg_recovery.md` | HG contract, calibration deviations, frozen allocation and registration record. |
+| `src/recovery_history.py` | Build paired histories/masks using `numeric_slip`; return immutable history and state metadata. |
+| `src/recovery_prompts.py` | Only the new state cue; import unchanged original task/probe prompts. |
+| `src/recovery_runner.py` | Compose/subclass M's engine primitives for explicit forks and correct `prev=s`; adapt checkpoint persistence without editing frozen loops. |
+| `configs/MR_{A,B,C,D}.json` | Local model, decoding, checkpoints, factors, mask rule, schema version and registration path. |
+| `scripts/run_recovery.py` | Local-only preflight, mock/calibration/test CLI, manifest check, registration guard, measured timing and resume. Reuse id/data loaders. |
+| `scripts/analyze_recovery.py` | HG estimates/decisions, secondary tables and figures; reuse archive readers, metrics and Holm. |
+| `scripts/recovery_precision.py` | CPU simulation using synthetic or calibration data only; power/precision and null-test validation. |
+| `tests/test_recovery.py` | Construction, probe isolation, state labels, resume and statistical fixtures. |
+| `RECOVERY.md` | Exact implemented commands, provenance and interpretation; no claims from mock results. |
 
-## 13. Deviations log (changes after this plan was written, with reasons)
+Keep M artifacts unchanged unless a real bug is found; document and register any
+necessary M fix before its inference. Existing `run_meta_arm` explicitly rejects
+MR names, and its validator fixes the M row structure. Reuse safe low-level
+helpers such as atomic writes, chat formatting and archiving; give MR its own
+schema validator and arm dispatcher. Do not bypass M guards or copy its entire
+runner/analysis just to rename arms.
 
-| Date | Change | Reason |
+## 7. Persistence, reproducibility and failure handling
+
+Maintain the familiar per-arm `config.json`, `rows.jsonl`,
+`trajectories.jsonl`, `run.log`, atomic `checkpoints/<id>_<c>.json`, and
+`MR_<arm>.tar.gz` with one root directory. Add a top-level manifest and a schema
+version. The row key is `(study, arm, sample_id, checkpoint, record_type, offset)`.
+Each completed checkpoint has one metadata row and ten continuation rows;
+attach forecast/awareness forks as explicitly named fields, not fictitious task
+turns. Record shown histories, mask, true/supplied state, prompt hashes, raw
+probes, token features and next-10 truth labels.
+
+Resume must match model/data/source/config/registration fingerprints before
+allocating a GPU. A crash before atomic checkpoint commit reruns only that
+checkpoint; a crash after commit rebuilds JSONL without duplicates. Store raw
+completed outputs even if parsing fails, so resume cannot generate a new answer
+until it gets a preferable one. Reject corrupt/mismatched checkpoints and
+archives instead of overwriting them. Never mix mock and real results.
+
+Deterministic arm order and generation batch size must be recorded and frozen.
+Timing and transient GPU memory are runtime logs, not resume fingerprint inputs.
+A resume of fully complete arms should validate/export without model loading.
+Analysis accepts archive inputs read-only and emits results to a new MR-owned
+directory; it must refuse an accidental existing output overwrite.
+
+## 8. Validation and sample-size gates
+
+**CPU acceptance tests:** exact earlier-error count and forced endpoint;
+A/D and B/C byte-identical histories; paired keys/checkpoints/cues; wrong totals
+never truth; both cue values differ; first-step labels use s; no probe leakage;
+one-time cue; exact ten-step horizon; correct raw/clipped/missing parsing;
+context-limit rejection; crash/resume equivalence; config/model mismatch
+rejection; immutable archives; and test runs rejected without registration.
+
+Synthetic analysis fixtures must cover all HG criteria, no performance
+recovery, equivalence boundaries, a lower forecast than an overconfident A
+without actual underconfidence, all-zero floors, missing arms, single-class
+AUROC and the distinction between trajectory and row resampling. A mock may
+demonstrate plumbing but must never receive an empirical HG verdict.
+Use a new mock adapter if it needs to recognize the neutral cue; preserve the
+original test generator and tests. All existing tests must continue passing.
+
+**Calibration sequence after GPU approval:** first ids 0–1 at checkpoint 10
+in all four MR arms (8 conditions, 80 continuation answers). Then a separately
+budgeted feasibility pilot on ids 0–7 at all seven checkpoints (224 conditions,
+2,240 answers). Measure successful cue handling, clean/repaired accuracy,
+probe validity, context fit and runtime. Do not treat pilot significance as the
+criterion for choosing a design. A technical or floor failure triggers a dated
+calibration-only revision and new output directory, not a quiet switch to
+thinking or continual oracle corrections in test runs.
+
+Use pilot variance and declared effect-size scenarios for prospective joint
+power and CI-width simulations. Report power for all HG criteria jointly,
+including equivalence, rather than only the easiest contrast. Small pilots
+give uncertain variance estimates; include a conservative variance sensitivity.
+Do not promise that 32 trajectories can establish ±5-point equivalence.
+
+The initial prospective MR extension uses ids 20–51, as accepted, with all seven
+checkpoints. These task sequences have already been examined in A0, so call it
+a prospective intervention extension, not independent replication. Do not
+reuse calibration ids for confirmatory tests or count mask seeds as independent
+trajectories. All 32 complete paired trajectories are needed for the full
+primary verdict; partial data are diagnostic/exploratory.
+
+For independent confirmation, first audit uses/reservations of ids 52–99 and
+fresh seeds in the archived plan, run configs and available archives, without inspecting
+outcomes to choose a favorable subset. Freeze a new disjoint manifest or use
+documented fresh LHE sequences from unused seeds via `generate_fresh`. Add
+explicit manifest support to the new runner; do not change `SPLITS` or claim
+the existing M CLI accepts reserve/fresh inputs. The required N and budget are
+chosen before that confirmation. Coordinate cross-model replication later;
+Granite-only evidence remains Granite-specific.
+
+## 9. Milestones and completion criteria
+
+| Milestone | Deliverable | Exit condition |
 |---|---|---|
-| 2026-11-13 | The logit AUROC and τ for **numeric slips** compare them with **locally correct** steps (ok + inherited), not with ok steps only | With one running total, almost no turn after the first slip is ok compared with the truth, so "slip vs. ok" would have no ok items in later bins. A logit signal can only judge local correctness anyway. Inherited vs. ok is reported only where both exist (early bins). |
-| 2026-11-13 | **Model changed from Qwen3-8B to IBM Granite 4.2 8B** | The instructor assigned each of the 3 group members a different model; Qwen3-8B and Llama are taken. Granite 4.2 8B: Apache-2.0, no download approval needed, same size class, thinking switch in the same model. |
-| 2026-11-13 | Thinking audits (A3/A4) use the model card's recommended sampling (Granite 4.2: temperature 1.0, top-p 0.95), with a fixed seed per (trajectory, turn) | The model card requires these settings for thinking mode. The fixed seeds keep runs reproducible. |
-| 2026-11-13 | The agent's own answers stay **greedy** (temperature 0), even though the Granite model card recommends temperature 1.0 for all modes | Greedy answers are deterministic and standard for evaluation, and keep the three group members comparable. Logprobs are recorded either way. |
-| 2026-11-13 | The chat format is **derived from each model's official chat template** (`Chat` in `src/agent.py`) instead of a hard-coded format | Works for any model with an `enable_thinking` switch. For Granite, past assistant turns are `<think></think>answer` and the non-thinking prompt ends with `<think></think>`. A unit test checks that our tokens equal `apply_chat_template` in both modes. |
-| 2026-11-13 | **Agent prompt revised** (prompt v2/v3 with a worked example on a separate toy dictionary) | In the Phase 0 smoke test (on Qwen3-8B, before the model switch), prompt v1 made the model reply with the key's value instead of the running total. The version is chosen on calibration ids only and frozen in `prereg.md`. |
-| 2026-11-13 | Added a **contamination check** with freshly generated sequences (§2, Phase 1 step 4) | Granite 4.2 was released after the dataset, so training-data contamination cannot be ruled out by date alone. |
-| 2026-11-13 | **Prompt v2 frozen** for the bare-number arms (all configs: `prompt_version: 2`) | Prompt check on Granite (calibration ids 0–3, 40 turns): v1 → the model writes its working and is cut off (158/160 non-answers); v3 → degenerates into repeating the start of the history (152/160 non-answers); v2 → answers with the number first. |
-| 2026-11-13 | **Replies end at the first line break** (`stop=["\n"]` for answers, re-computes and numeric probes); logit statistics exclude the line-break token | With v2, Granite writes the number on line 1 and then adds "Let me verify…", which made correct answers count as malformed and polluted the history. With the stop: on ids 0–3, 100 turns, replies are clean bare numbers (31 non-answers out of 400, all the string `-?`). |
-| 2026-11-13 | Inline prompt (A0_inline) v2: the format is **described in prose** ("the new running total, then a space, a vertical bar '\|', a space, and your confidence…"), with no placeholders and no numeric confidence example | Placeholders were copied literally: `<88> \| 100` with angle brackets; `? \| ?` with letters N/C. The `scripts/diag_inline.py` check of first-token probabilities on calibration samples 0–7 showed `?`/`N` as top tokens under the letter wording, and 8/8 well-formed replies under the prose wording. |
-| 2026-11-13 | Added Granite's **low-effort thinking** as an audit option (`audit_low_effort`), implemented exactly as the official template does (a unit test checks it) | Gives a cheaper audit mode to compare against full thinking in the Phase 1 budget check. |
-| 2026-11-13 | `generate_fresh()` builds fresh sequences: same dictionary, i.i.d. uniform keys | Needed for the contamination check. The published calibration samples match this distribution: all 100 keys at 0.73–1.33% frequency; consecutive-repeat rate 0.75%. |
-| 2026-11-13 | **Constrained decoding** (`constrain: true`): agent replies are forced by regex to be an integer (`-?[0-9]{1,6}`; inline `N \| C`; numeric probes `[0-9]{1,3}`; re-computes likewise). Logprobs stay **raw** (vLLM default `raw_logprobs`, i.e. before the constraint); a number-renormalized `lp_fin_renorm_min` is logged alongside. The first unconstrained pilot (20 × 250 turns) was stopped and is kept only as a record | In the unconstrained pilot, **58% of replies were non-answers**, growing with position: Granite in non-thinking mode drifts into prose ("We need to compute the running total…"), the first line is cut, that line enters the history and is copied. That measured format failure rather than the slips the hypotheses are about. Check with the constraint (calibration ids 0–7, 200 turns): 0 non-answers; logit AUROC on numeric slips 0.88–0.91 per bin (raw = renormalized = 0.903); HA upper bound 0.78. This follows the instructor's E8 precedent of constrained output; **group members should use the same constraint** so the three models stay comparable. |
-| 2026-11-13 | **τ fixed at −0.138** (Youden J = 0.668 on numeric slips vs. locally correct steps) and **K = 1** confirmed, from pilot job 1 (A0, calibration ids 0–19 × 300 turns, constrained) | K = 1 already gives ≥ 15 numeric slips in every position bin (235 / 385 / 866 / 1,002) and is far from 100% local accuracy. |
-| 2026-11-13 | **Pilot trimmed** (user decision, GPU 0 shared and slow): treatment A1b on the same 20 calibration trajectories × 100 turns (paired with job 1's first 100 turns); contamination check 20 fresh × 100 turns with probes off; inline check 4 × 30; audit checks 4 × 40 per mode (`scripts/pilot_trimmed.py`) | Keeps a baseline-vs-treatment comparison with enough trajectories while cutting GPU time from many hours to about 1–2. |
-| 2026-11-13 | **Per-trajectory saving and resume** in `agent.run`: rows flushed every turn; one line per finished trajectory in `trajectories.jsonl`; `resume=True` skips finished trajectories and discards rows of unfinished ones; trajectories run in groups of `group_size` | User requirement: results must be saved after every trajectory, not only at the end. A unit test simulates a crash mid-trajectory and checks that the resumed output equals an uninterrupted run. |
-| 2026-11-13 | **Gate re-compute = prompt v2 + Granite low-effort thinking** (`recompute_think`, budget 1,024, model-card sampling, seeded) for A1a/A1b/A2 | Pilot: with the v1 non-thinking re-compute, A1b was *worse* than the baseline (re-computes 30% correct; they often echoed the starting total). Isolation check on 400 fired cases: v1 non-thinking 23.7%, v2 non-thinking 5.0%, **v2 + low-effort thinking 98.8%** (about 20 tokens). A1b re-run (20 × 100, calibration): accuracy 0.042 → 0.164, turns to first error 3.8 → 16.5. A2 uses the identical re-compute, so the compute control stays fair. |
-| 2026-11-13 | **HA criterion changed** from "the inherited share drops" to "**error chains (seed slips) per trajectory** fall" (accuracy over all turns stays primary) | With one running total, every slip the gate misses still corrupts all later turns, so the inherited *share* of the remaining errors rises mechanically even when the gate works (pilot: rate 0.649 → 0.775 while chains fell 31 → 6 per trajectory). Chains per trajectory measures what "catching the seed" predicts. Decided on calibration data, before pre-registration. |
-| 2026-11-13 | **A3/A4 audits: full thinking, budget 8,192, m = 5** | Pilot (4 × 40, 32 audits): full thinking J = 1.00 and 20/20 corrections exact (9.4% unfinished); low-effort J = 0.91 but only 17/22 corrections exact (wrong corrections start new error chains). HB should test auditing outside the history, not a sloppy auditor. Cost: about 42× the GPU time of low-effort. |
-| 2026-11-13 | **Pre-registration** (`prereg.md`): run order changed to A0 → A0_inline → A1a → A1b → A2 → D1 → D2 → A3 → A4 (cheap arms first); A1a is expected to equal A0, because forced-integer replies are never malformed, so its gate cannot fire (it is kept as a reproducibility check, and HA's control comparison is A1b vs. A0 and A2); HB/HC/HD/HE rules made fully operational (bin Δ for J, MAE + Spearman for HC, TOST ±0.05 and a slope band ±0.0005/turn for HD, the conditional for HE) | So that partial results exist if GPU time runs out, and so that every verdict is mechanical. Real-model smoke tests of A1a, A2, A4, D1, D2 with the final configs all ran (A4: 6/6 audits finished). |
-| 2026-11-13 | Phase 2 forced tests run **on CPU with a scripted fake model** (`tests/test_arms_mock.py`, 9 tests) while GPU 0 was busy; a short GPU smoke run of each arm remains | The fake reads the real prompts (real tokenizer) and answers by rule, so gate firing, commits, labels, audit corrections, D1/D2 state lines and HC evidence can be checked exactly. All pass. |
-| 2026-11-13 | Repository: the instructor's two files and the 102 MB `test.jsonl` are excluded from git (`.gitignore`); `scripts/fetch_data.py` fetches the dataset at the pinned revision and verifies the checksums | The target GitHub repo is public and the instructor's material is unpublished; GitHub rejects files over 100 MB. |
-| 2026-11-13 | GPU memory utilization lowered from 0.7 to 0.6 | Another user started a 13 GB job on GPU 0; 0.6 × 48 GB leaves room for it. |
-| 2026-11-13 | Thinking-audit budget of 2,048 tokens is **too small for Granite** (smoke test: 5/6 audits unfinished in A3, 4/6 in A4) | To be fixed in Phase 1 step 3 (raise the budget toward the model card's 8,192, or use Granite's low-effort thinking mode). |
-| 2026-11-13 | **Post-registration:** `scripts/analyze_main.py` committed (`4a605de`) 10 minutes after the main runs started, before any test output existed; it is not in the prereg checksum list | It implements prereg §3–§4 as written. It was written after the freeze, so it is recorded here. |
-| 2026-11-14 | **Post-registration (reporting):** HD's Holm p is the TOST p of its D1 equivalence part. The D2 slope part has a CI but no p-value. The verdict uses both parts | The prereg defines one p per hypothesis, but the slope band is a CI rule. This choice does not change any verdict: HD is "not supported" on the slope part either way. |
-| 2026-11-14 | **Post-registration (exploratory):** D2 accuracy split by the size of the true running total (`results/figures/fig7_d2_by_magnitude.png`) | D2 failed the slope band. Inspection showed that the running total grows with position (mean \|total\| about 230 → 985), and accuracy depends strongly on the digit count (3-digit about 0.66, 4-digit about 0.38) and only weakly on position within a size class. Post hoc, so reported only as exploratory. The verdict is unchanged. |
-| 2026-11-14 | **Post-registration (note):** HB's A4 ΔJ CI upper bound is exactly 0.000 (percentile bootstrap), so "entirely below 0" is not met, and HB is "partial" as the rule states | Recorded so the borderline is visible. Late bins have few correct audited totals (near-floor accuracy), so the FPR side of J is thin there. |
-| 2026-11-14 | **Post-registration (note):** the §5 contrast "slip rate before vs. after the first error" is degenerate: before the first error the slip rate is 0 by definition. We report the after-first-error rate per arm and the across-arm slip rates (A0 vs. D1 vs. D2) instead | Definitional, found when computing it. Not used for any verdict. |
-| 2026-11-14 | Figures use trajectory-bootstrap CIs with 2,000 resamples; verdict CIs use the registered 10,000. Raw main-run outputs are published as compressed archives in `results/raw_main_20261113-173033/` | Figures are illustrative; the verdicts come from `main_results.json`. The archives make every number re-computable without the GPU. |
+| P0 — readiness (done 2026-11-17) | Local model/data and full content manifest | All indexed shards and tokenizer/template files hashed; pinned data verified; CPU tests pass. |
+| P1 — draft design (done; freeze pending) | `prereg_recovery.md` | Written before MR analysis code; calibration/precision review and commit still required. |
+| P2 — CPU implementation (done 2026-11-17) | Four configs, runner, analysis, tests, mock/resume | 57 tests pass; full seven-checkpoint mock/resume exercised; mock verdict withheld. Synthetic power/null/boundary diagnostics saved for review. |
+| P3 — calibration and precision (MR pilot done; M/review pending) | MR pilot, recorded amendments and precision report saved | MR: 224 conditions / 2,240 real answers complete. M calibration and final review remain; combined HG pattern not established in pilot. |
+| P4 — freeze and authorize | Registration commits and source/model/data manifests | Relevant files committed; test guards pass; actual GPU budget approved. |
+| P5 — collect | All seven M arms and four MR arms in separate roots | Complete expected paired cells, resumable archives, no test-driven protocol changes. |
+| P6 — analyze | HF and HG tables, intervals, adjusted tests, figures | Full rules applied, missingness/floors disclosed, every number traceable to rows. |
+| P7 — confirm and write | Disjoint confirmation if feasible, bounded manuscript claims | Literature update and attribution review; all null/reversed results included. |
+
+No fixed calendar completion or GPU-hour claim is made before P3 measurements.
+Implement both protocols before looking at their main outcomes; M results are
+not a gate that selects whether to report MR. Main inference can run M then MR
+for scheduling convenience, but the HG specification must already be frozen.
+
+## 10. Commands and compute accounting
+
+**Runnable now, CPU only** (from the repository root):
+
+```bash
+python3 -c "from src.lhe_data import verify; verify(); print('Dataset checksums OK')"
+python3 -m unittest discover -s tests -v
+python3 scripts/run_meta.py --help
+python3 scripts/run_meta.py --dry-run --ids 20-21 --checkpoints 10,25 --out runs/meta_cpu_20261117
+python3 scripts/run_meta.py --dry-run --ids 20-21 --checkpoints 10,25 --out runs/meta_cpu_20261117 --resume
+python3 scripts/analyze_meta_experiment.py runs/meta_cpu_20261117 --n-boot 100
+```
+
+Choose a new output path if that example already exists. Existing CPU smoke
+results need not be regenerated merely because this plan changed.
+
+**Existing M GPU commands, only after the corresponding approval**; test runs
+also require the HF registration/materials to match their commit:
+
+```bash
+python3 scripts/run_meta.py --split calibration --ids 0-1 --arms L0 L100 S0 S100 --checkpoints 10 --gpu 0 --out runs/meta_cal_20261117
+python3 scripts/run_meta.py --split test --gpu 0 --out runs/meta_HF_20261117
+python3 scripts/run_meta.py --split test --gpu 0 --out runs/meta_HF_20261117 --resume
+python3 scripts/analyze_meta_experiment.py runs/meta_HF_20261117
+```
+
+**MR CLI — implemented; CPU commands runnable now:**
+
+```bash
+python3 scripts/run_recovery.py --preflight --split calibration --ids 0-1 --checkpoints 10
+python3 scripts/run_recovery.py --dry-run --ids 20-21 --checkpoints 10,25 --out runs/recovery_mock_20261117
+python3 scripts/run_recovery.py --dry-run --ids 20-21 --checkpoints 10,25 --out runs/recovery_mock_20261117 --resume
+python3 scripts/analyze_recovery.py runs/recovery_mock_20261117 --n-boot 100
+# GPU: only after approval; test requires the finalized HG registration.
+python3 scripts/run_recovery.py --split calibration --ids 0-1 --checkpoints 10 --gpu 0 --out runs/recovery_cal_20261117 --resource-manifest results/recovery_resources_complete_20261117.json
+python3 scripts/run_recovery.py --split test --gpu 0 --out runs/recovery_HG_20261117 --resource-manifest results/recovery_resources_complete_20261117.json
+python3 scripts/run_recovery.py --split test --gpu 0 --out runs/recovery_HG_20261117 --resume --resource-manifest results/recovery_resources_complete_20261117.json
+python3 scripts/analyze_recovery.py runs/recovery_HG_20261117 --n-boot 10000
+```
+
+`--preflight` must be read-only and CPU-only: resource/hash/registration/context
+checks, counts and planned paths; no weight loading or generation. `--dry-run`
+is synthetic and needs neither model nor dataset. Default MR arms are all four;
+main test overrides of checkpoints, masks or prompts must be rejected.
+
+M requires 7×32×7 = **1,568 checkpoint conditions / 15,680 continuation
+answers**. MR requires 4×32×7 = **896 conditions / 8,960 answers**. Combined:
+**2,464 conditions / 24,640 answers**, excluding all side probes and calibration.
+For MR also budget pre/post forecasts, 20 per-answer verbal/Yes–No forks and
+one post-continuation awareness fork per condition; exact prefix deduplication
+can save repeated pre-cue forecasts. Batch calls are not equivalent to generated
+sequences. Measure prefill/generated tokens and wall time across early/late
+checkpoints to estimate the full budget. Ask for that concrete budget approval
+before a long run; do not infer hours from answer count alone.
+
+## 11. Research outputs and claim boundaries
+
+Write new MR results under `results/recovery_<run-id>/`: machine-readable
+estimates, a report, provenance and figures. Required figures are (1) accuracy
+by arm/checkpoint, (2) pre/post forecasts versus realized accuracy, (3) paired
+HG effects with practical margins and intervals, and (4) secondary calibration
+and discrimination with support counts. Keep A0 exploratory figures unchanged.
+
+The new candidate contribution is the separation of **execution recovery**
+from **forecast recovery** under retained erroneous history. State repair and
+confidence trajectories already have precedents; credit the eight papers in
+the accepted proposal and the instructor's originating question. The current
+literature record was checked on 2026-11-16, not refreshed by this plan edit.
+
+Explicit limitations: artificial +1 patterns; a teacher-forced past; one model
+and task; numerical-width effects; cue consistency/trust (repair contradicts
+the last displayed answer); no mechanistic activation intervention; limited
+precision; and no independent replication yet. Matched-state long/short
+controls, additional mask seeds, naturally generated failure histories and
+other models are separately registered robustness studies, not silently added
+primary arms. A floor-limited or null result remains reportable. Neither an
+accepted proposal nor a completed implementation guarantees publication.
+
+**Historical CPU milestone, 2026-11-17 (superseded by opening status):** CPU implementation is complete: HG draft, histories,
+runner/configs, atomic resume, analysis/figures, precision simulator and resource
+manifest. All 55 tests pass. A four-arm × two-trajectory × seven-checkpoint mock
+completed and resumed without regeneration. A read-only local-tokenizer preflight
+passed at all seven checkpoints for calibration ids 0–1; no weights were loaded.
+GPU calibration, pilot-based precision review, freeze/commit and main inference
+remain pending. See `RECOVERY.md` for implemented commands and artifact links.
+
+
+**Administrative reorganization, 2026-11-17:** Unused Study-1 files and all old-work shortcuts now reside only in `previous work/`. Active `prereg.md` retains HF; complete historical registrations/plans are archived. Shared primitives remain in `src/`. The id parser and bin definitions are in `src/study_common.py`; current tools read the unchanged archived +1 generator directly. Archived regression tests run via `tests/test_legacy_regression.py`. This changes file locations/imports, not the experimental design. Existing mock outputs retain their original source fingerprints and must not be resumed with changed code; use a new output root.
+
+
+## Initial calibration smoke record — 2026-11-17
+
+The user authorized GPU 1. A calibration-only `gpu1-small` runtime profile
+(utilization .38, context 2,048, eager mode, one active sequence, 512-token
+chunked prefill) completed ids 0–1/checkpoint 10 in all four MR arms: eight
+conditions and 80 real answers. All 56 CPU tests pass. The profile is rejected
+for main inference; its amendment was written before calibration generation.
+
+See [calibration smoke summary](results/recovery_gpu1_cal_20261117/smoke_summary.md).
+The pipeline and memory fit are validated for that scope only. Broader calibration
+at all checkpoints, real-variance precision review, registration freeze/commit
+and main runs remain pending. The small profile cannot serve the later
+checkpoints at its 2,048 limit; use a separately recorded larger-context
+calibration profile and recheck memory/context. No main settings changed.
+
+
+## Full calibration pilot completed
+
+The GPU 1 pilot `recovery_gpu1_pilot_20261117` completed all 224 conditions
+and 2,240 real task answers under the pre-recorded `gpu1-long` calibration-only
+profile. All four archives validated and GPU memory was released. See the
+[pilot summary](results/recovery_gpu1_pilot_20261117/pilot_summary.md).
+
+A and C each produced 85/560 globally correct totals, B 21/560, D 23/560.
+The combined HG diagnostic criteria do not pass: the pilot does not establish
+overall underconfidence after repair. These are calibration findings, not a
+main study verdict. Keep the primary margins/checkpoints fixed rather than
+selecting a favorable subset. Review precision and the role of M before freeze.
+
+Precision simulation was corrected to operate on joint trajectory contrasts
+when shifted arm scores produced invalid draws. The recorded HG empirical
+tests were checked identical after extracting a shared statistical helper;
+all 57 tests pass. The generation source snapshot is preserved; changed code
+requires a new inference root. Main inference and automatic freezing remain
+blocked by the existing registration gate.
+
+
+## M calibration in progress — 2026-11-18
+
+Following the current roadmap, M calibration was started on GPU 1 using
+calibration ids 0–7, all seven arms and checkpoints (392 conditions / 3,920
+task answers). The `.38 / 6,144` eager/chunked-prefill runtime profile was
+documented in HF before inference and is rejected for test overrides. A shared
+helper now serves both M and MR runtime preflights; model prompts, masks,
+labels and HF tests are unchanged. All pre-freeze tests pass; M mock/resume and the
+real-tokenizer full context preflight passed (bound 5,241 tokens). The original
+calibration generation source is snapshotted under its run root. Finish this
+calibration before final runtime/precision review and registration freeze.
+
+
+## Pre-main review and freeze decision — 2026-11-18
+
+Both calibration pilots are complete and preserved. M diagnostic contrasts
+show pessimism 50.73 points, dose 4.78, but the corrected classification is
+inconclusive because dose equivalence is unresolved. MR does not establish
+overall repaired-arm underconfidence. Keep N=32, the full checkpoint set,
+margins and decision families; do not tune toward favorable outcomes.
+Calibration precision is explicitly uncertain; N=32 may yield an inconclusive
+result. No independent confirmation ids are silently allocated.
+
+Canonical runtime settings in all 11 main configs now match the fully tested
+calibration profile, with CPU main-input bound ≤5,430 below 6,144. Both protocols
+are marked frozen for the registration commit; calibration-only CLI overrides
+remain prohibited for test inference. Final code also preserves source snapshots
+automatically and refuses accidental M analysis-output overwrite.
+
+M main is projected at 56.1 minutes and MR at 32.8 minutes from pilot throughput
+(24,640 task answers total), plus startup/analysis/shared-machine variability.
+The original user instruction requires approval before a long GPU run; prepare
+and commit the concrete materials before requesting that final approval.

@@ -1,0 +1,44 @@
+{
+  "model_id": "ibm-granite/granite-4.2-8b",
+  "model_revision": "a7042144125ce5ae64f89610e8289647fc000b9a",
+  "model_dir": "models/granite-4.2-8b",
+  "util": 0.38,
+  "max_model_len": 6144,
+  "T": 300,
+  "K": 1,
+  "seed": 0,
+  "checkpoints": [
+    10,
+    25,
+    50,
+    100,
+    150,
+    200,
+    250
+  ],
+  "prompt_version": 2,
+  "constrain": true,
+  "arm": "MR_C",
+  "study": "MR",
+  "schema_version": 1,
+  "registration": "prereg_recovery.md",
+  "history_error": true,
+  "state_correct": true,
+  "earlier_error_rate": 0.5,
+  "endpoint_error": true,
+  "arm_order": [
+    "MR_A",
+    "MR_B",
+    "MR_C",
+    "MR_D"
+  ],
+  "task_batch_size": 1,
+  "probe_batch_size": 2,
+  "engine_settings": {
+    "enforce_eager": true,
+    "max_num_seqs": 1,
+    "max_num_batched_tokens": 512,
+    "enable_chunked_prefill": true
+  },
+  "runtime_note": "Frozen 2026-11-18 after calibration; runtime-only change, no prompt/mask/decoding/threshold changes"
+}

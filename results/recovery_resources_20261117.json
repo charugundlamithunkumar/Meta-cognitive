@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "dataset_revision": "7e4901fbb42b88144a65782052d0c8d87a358edc",
+  "files": {
+    "models/granite-4.2-8b/config.json": {
+      "size": 907,
+      "sha256": "85611f4e34633d4e148e6a5f64bc2d3a23ebbc2b014bc87fbda764eecf261cd9"
+    },
+    "models/granite-4.2-8b/tokenizer.json": {
+      "size": 7153414,
+      "sha256": "883975314d58743726347caaf2c32ac89afd5ad57222cffbc4f052f2ab27b2d7"
+    },
+    "models/granite-4.2-8b/tokenizer_config.json": {
+      "size": 17677,
+      "sha256": "2007f26df166ed10a2d6fa881c1c8f3cdd151e451469f59b274897f14449835f"
+    },
+    "models/granite-4.2-8b/model.safetensors.index.json": {
+      "size": 29894,
+      "sha256": "5fa1c5495b1d4a125cc5022b3fbe59b2144ecda39c78a3d37d4e89d60c1090da"
+    },
+    "models/granite-4.2-8b/model-00001-of-00004.safetensors": {
+      "size": 5335320208,
+      "sha256": "baed4f3128d1f2e3792ad896ac5621124929bb4f658722f132e614108751e96c"
+    },
+    "models/granite-4.2-8b/model-00002-of-00004.safetensors": {
+      "size": 5285049768,
+      "sha256": "69e7a59b810f4c029339b7a208b4dac0c1eee6b88a66e830e74882cbd191803c"
+    },
+    "models/granite-4.2-8b/model-00003-of-00004.safetensors": {
+      "size": 5360555872,
+      "sha256": "c2c52fd2baa6ec5003d3ac9842bfd782c0a5a80fc9a1b406a007cae6af008a89"
+    },
+    "models/granite-4.2-8b/model-00004-of-00004.safetensors": {
+      "size": 1602302184,
+      "sha256": "0dfcc074193c1cb81270fd6e99cace27d4b0461e8739691c2a347b657c030ffc"
+    },
+    "data/lhe/dictionary.json": {
+      "size": 1542,
+      "sha256": "33d783c31d664d791a6ff08671b86775cac681768d2853987d528c30457c017e"
+    },
+    "data/lhe/test.jsonl": {
+      "size": 102390358,
+      "sha256": "111ef6e3850368efd84175576c279aeba36ddfb20da3582c01a078bfa77620c6"
+    },
+    "data/lhe/config.json": {
+      "size": 122,
+      "sha256": "0cc5df39a45c71d1044e197f660045de09922d74011efa0c688a658c72aa4656"
+    }
+  },
+  "python": "3.13.11",
+  "packages": {
+    "numpy": "2.2.6",
+    "scipy": "1.17.1",
+    "torch": "2.11.0",
+    "vllm": "0.24.0",
+    "transformers": "5.12.1",
+    "matplotlib": "3.10.9",
+    "statsmodels": "0.15.0"
+  },
+  "sha256": "80a4c37d0df596774dd061200189bd275d4a3d89b8d3bca861aca5a651fb5b34"
+}

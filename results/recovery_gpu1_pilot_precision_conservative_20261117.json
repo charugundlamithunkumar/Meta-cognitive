@@ -1,0 +1,122 @@
+{
+  "kind": "SYNTHETIC SIMULATION ONLY",
+  "n": 32,
+  "reps": 500,
+  "n_boot": 1000,
+  "sigma": 5.0,
+  "noise": "resampled calibration residuals",
+  "variance_multiplier": 2.0,
+  "seed": 0,
+  "warning": "Not a sample-size guarantee. Out-of-bounds rejection conditions the simulated distribution; inspect counts and use smaller sigma near bounds. Calibration variance is uncertain.",
+  "scenarios": {
+    "dissociation": {
+      "valid_replicates": 0,
+      "rejected_out_of_bounds": 500,
+      "joint_support_rate": null,
+      "mean_equivalence_CI_width": null,
+      "raw_rejection_rate": {
+        "HG1": null,
+        "HG2": null,
+        "HG3": null,
+        "HG4": null
+      },
+      "holm_support_rate": {
+        "HG1": null,
+        "HG2": null,
+        "HG3": null,
+        "HG4": null
+      }
+    },
+    "no_recovery": {
+      "valid_replicates": 0,
+      "rejected_out_of_bounds": 500,
+      "joint_support_rate": null,
+      "mean_equivalence_CI_width": null,
+      "raw_rejection_rate": {
+        "HG1": null,
+        "HG2": null,
+        "HG3": null,
+        "HG4": null
+      },
+      "holm_support_rate": {
+        "HG1": null,
+        "HG2": null,
+        "HG3": null,
+        "HG4": null
+      }
+    },
+    "HG1_null": {
+      "valid_replicates": 0,
+      "rejected_out_of_bounds": 500,
+      "joint_support_rate": null,
+      "mean_equivalence_CI_width": null,
+      "raw_rejection_rate": {
+        "HG1": null,
+        "HG2": null,
+        "HG3": null,
+        "HG4": null
+      },
+      "holm_support_rate": {
+        "HG1": null,
+        "HG2": null,
+        "HG3": null,
+        "HG4": null
+      }
+    },
+    "HG2_boundary": {
+      "valid_replicates": 0,
+      "rejected_out_of_bounds": 500,
+      "joint_support_rate": null,
+      "mean_equivalence_CI_width": null,
+      "raw_rejection_rate": {
+        "HG1": null,
+        "HG2": null,
+        "HG3": null,
+        "HG4": null
+      },
+      "holm_support_rate": {
+        "HG1": null,
+        "HG2": null,
+        "HG3": null,
+        "HG4": null
+      }
+    },
+    "HG3_boundary": {
+      "valid_replicates": 0,
+      "rejected_out_of_bounds": 500,
+      "joint_support_rate": null,
+      "mean_equivalence_CI_width": null,
+      "raw_rejection_rate": {
+        "HG1": null,
+        "HG2": null,
+        "HG3": null,
+        "HG4": null
+      },
+      "holm_support_rate": {
+        "HG1": null,
+        "HG2": null,
+        "HG3": null,
+        "HG4": null
+      }
+    },
+    "HG4_boundary": {
+      "valid_replicates": 0,
+      "rejected_out_of_bounds": 500,
+      "joint_support_rate": null,
+      "mean_equivalence_CI_width": null,
+      "raw_rejection_rate": {
+        "HG1": null,
+        "HG2": null,
+        "HG3": null,
+        "HG4": null
+      },
+      "holm_support_rate": {
+        "HG1": null,
+        "HG2": null,
+        "HG3": null,
+        "HG4": null
+      }
+    }
+  },
+  "pilot_source": "runs/recovery_gpu1_pilot_20261117"
+}

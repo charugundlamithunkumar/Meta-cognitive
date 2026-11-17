@@ -1,0 +1,61 @@
+{
+  "tasks": [
+    {
+      "study": "HF",
+      "run": "/home/viswanath/mithun/runs/meta_HF_main_20261118",
+      "analysis": "/home/viswanath/mithun/results/meta_HF_main_20261118",
+      "result_file": "meta_experiment.json",
+      "inference": [
+        "/home/viswanath/miniconda/bin/python3",
+        "/home/viswanath/mithun/scripts/run_meta.py",
+        "--split",
+        "test",
+        "--gpu",
+        "1",
+        "--resource-manifest",
+        "/home/viswanath/mithun/results/recovery_resources_complete_20261117.json",
+        "--out",
+        "/home/viswanath/mithun/runs/meta_HF_main_20261118"
+      ],
+      "analyze": [
+        "/home/viswanath/miniconda/bin/python3",
+        "/home/viswanath/mithun/scripts/analyze_meta_experiment.py",
+        "/home/viswanath/mithun/runs/meta_HF_main_20261118",
+        "--n-boot",
+        "10000",
+        "--out",
+        "/home/viswanath/mithun/results/meta_HF_main_20261118"
+      ]
+    },
+    {
+      "study": "HG",
+      "run": "/home/viswanath/mithun/runs/recovery_HG_main_20261118",
+      "analysis": "/home/viswanath/mithun/results/recovery_HG_main_20261118",
+      "result_file": "analysis.json",
+      "inference": [
+        "/home/viswanath/miniconda/bin/python3",
+        "/home/viswanath/mithun/scripts/run_recovery.py",
+        "--split",
+        "test",
+        "--gpu",
+        "1",
+        "--resource-manifest",
+        "/home/viswanath/mithun/results/recovery_resources_complete_20261117.json",
+        "--out",
+        "/home/viswanath/mithun/runs/recovery_HG_main_20261118"
+      ],
+      "analyze": [
+        "/home/viswanath/miniconda/bin/python3",
+        "/home/viswanath/mithun/scripts/analyze_recovery.py",
+        "/home/viswanath/mithun/runs/recovery_HG_main_20261118",
+        "--n-boot",
+        "10000",
+        "--out",
+        "/home/viswanath/mithun/results/recovery_HG_main_20261118"
+      ]
+    }
+  ],
+  "conditions": 2464,
+  "task_answers": 24640,
+  "note": "Read-only plan; no model or dataset loaded."
+}

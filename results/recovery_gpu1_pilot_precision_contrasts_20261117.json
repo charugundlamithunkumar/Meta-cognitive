@@ -1,0 +1,141 @@
+{
+  "kind": "CONTRAST-SPACE SIMULATION ONLY",
+  "n": 32,
+  "reps": 500,
+  "n_boot": 1000,
+  "sigma": 5.0,
+  "method": "Shifted joint trajectory contrasts; no arm-score clipping or rejection",
+  "noise": "resampled calibration residuals",
+  "variance_multiplier": 1.0,
+  "seed": 0,
+  "warning": "Not a sample-size guarantee or a generative model of bounded scores. Joint contrast covariance is preserved; eight-trajectory calibration variance and plug-in effect estimates are uncertain. Floor probability is not modeled beyond the scenario mean gate.",
+  "scenarios": {
+    "dissociation": {
+      "valid_replicates": 500,
+      "rejected_out_of_bounds": 0,
+      "joint_support_rate": 1.0,
+      "mean_equivalence_CI_width": 1.8710803571428565,
+      "raw_rejection_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 1.0,
+        "HG4": 1.0
+      },
+      "holm_support_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 1.0,
+        "HG4": 1.0
+      }
+    },
+    "no_recovery": {
+      "valid_replicates": 500,
+      "rejected_out_of_bounds": 0,
+      "joint_support_rate": 0.0,
+      "mean_equivalence_CI_width": 1.8564687499999994,
+      "raw_rejection_rate": {
+        "HG1": 0.062,
+        "HG2": 0.0,
+        "HG3": 1.0,
+        "HG4": 0.048
+      },
+      "holm_support_rate": {
+        "HG1": 0.026,
+        "HG2": 0.0,
+        "HG3": 1.0,
+        "HG4": 0.024
+      }
+    },
+    "HG1_null": {
+      "valid_replicates": 500,
+      "rejected_out_of_bounds": 0,
+      "joint_support_rate": 0.026,
+      "mean_equivalence_CI_width": 1.8503080357142854,
+      "raw_rejection_rate": {
+        "HG1": 0.072,
+        "HG2": 1.0,
+        "HG3": 1.0,
+        "HG4": 1.0
+      },
+      "holm_support_rate": {
+        "HG1": 0.026,
+        "HG2": 1.0,
+        "HG3": 1.0,
+        "HG4": 1.0
+      }
+    },
+    "HG2_boundary": {
+      "valid_replicates": 500,
+      "rejected_out_of_bounds": 0,
+      "joint_support_rate": 0.06,
+      "mean_equivalence_CI_width": 1.8596205357142854,
+      "raw_rejection_rate": {
+        "HG1": 1.0,
+        "HG2": 0.062,
+        "HG3": 1.0,
+        "HG4": 1.0
+      },
+      "holm_support_rate": {
+        "HG1": 1.0,
+        "HG2": 0.06,
+        "HG3": 1.0,
+        "HG4": 1.0
+      }
+    },
+    "HG3_boundary": {
+      "valid_replicates": 500,
+      "rejected_out_of_bounds": 0,
+      "joint_support_rate": 0.024,
+      "mean_equivalence_CI_width": 1.8593705357142851,
+      "raw_rejection_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 0.048,
+        "HG4": 0.996
+      },
+      "holm_support_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 0.024,
+        "HG4": 0.984
+      }
+    },
+    "HG4_boundary": {
+      "valid_replicates": 500,
+      "rejected_out_of_bounds": 0,
+      "joint_support_rate": 0.026,
+      "mean_equivalence_CI_width": 1.8611919642857138,
+      "raw_rejection_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 1.0,
+        "HG4": 0.064
+      },
+      "holm_support_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 1.0,
+        "HG4": 0.026
+      }
+    },
+    "pilot_estimate_diagnostic": {
+      "valid_replicates": 500,
+      "rejected_out_of_bounds": 0,
+      "joint_support_rate": 0.0,
+      "mean_equivalence_CI_width": 1.8631160714285706,
+      "raw_rejection_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 0.086,
+        "HG4": 0.0
+      },
+      "holm_support_rate": {
+        "HG1": 1.0,
+        "HG2": 1.0,
+        "HG3": 0.052,
+        "HG4": 0.0
+      }
+    }
+  },
+  "pilot_source": "runs/recovery_gpu1_pilot_20261117"
+}

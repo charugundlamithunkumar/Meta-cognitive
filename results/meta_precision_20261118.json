@@ -1,0 +1,45 @@
+{
+  "method": "Resampled joint trajectory-contrast residuals; hypothetical effects",
+  "pilot_n": 8,
+  "n": 32,
+  "reps": 500,
+  "n_boot": 1000,
+  "multiplier": 1.0,
+  "seed": 0,
+  "scenarios": {
+    "length-driven": {
+      "classification_rates": {
+        "length-driven": 0.98,
+        "inconclusive": 0.02
+      },
+      "mean_dose_CI_width": 6.984760625
+    },
+    "error-sensitive": {
+      "classification_rates": {
+        "monitoring-driven (error-sensitive reports)": 1.0
+      },
+      "mean_dose_CI_width": 6.965434910714286
+    },
+    "mixed": {
+      "classification_rates": {
+        "mixed": 0.998,
+        "inconclusive": 0.002
+      },
+      "mean_dose_CI_width": 6.921460982142857
+    },
+    "small": {
+      "classification_rates": {
+        "inconclusive": 1.0
+      },
+      "mean_dose_CI_width": 6.986806785714285
+    },
+    "pilot_estimate_diagnostic": {
+      "classification_rates": {
+        "inconclusive": 0.368,
+        "length-driven": 0.632
+      },
+      "mean_dose_CI_width": 7.025933749999999
+    }
+  },
+  "warning": "Small calibration sample; plug-in effects/variance are uncertain. This is not proof of power or an empirical HF verdict. Floors are reviewed separately."
+}
