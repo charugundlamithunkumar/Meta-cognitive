@@ -1,7 +1,12 @@
-# Prepared additional experiment: independent-sequence study C
+# Completed independent-sequence experiment C
 
-**No confirmation model answers have been generated. GPU budget approval is
-the remaining launch gate.** The completed M/MR studies are preserved.
+**Complete at 17:08:53 IST, 18 November 2026.** The user approved the full
+run. All 2,464 conditions / 24,640 new task answers, eleven archives, source
+snapshots and paired cells validated. C-HF is length-driven; C-HG inconclusive.
+The user-requested results PDF is
+`results/all_experiments_20261118/all_experimental_results.pdf`.
+Original M/MR are preserved and GPU 0's allocation is released. Commands below
+are historical/reproducibility instructions; do not rerun a completed job.
 
 The implementation plan calls for independent confirmation if feasible. The
 new explicit allocation avoids the historically reserved ids/seeds: 32 fresh
@@ -46,7 +51,7 @@ bounds 5,452 tokens for M and 5,473 for MR, below 6,144. The complete-family
 mock/resume fixture passes, with corrupted checkpoints rejected and all mock
 scientific verdicts withheld. These are software checks, not C findings.
 
-## Exact launch after additional long-run approval
+## Historical approved launch and technical resume commands
 
 Use the existing Python environment. The new supervisor verifies the frozen
 registration and source/config/sample/resource fingerprints before inference,

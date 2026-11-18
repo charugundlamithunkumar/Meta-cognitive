@@ -1,0 +1,58 @@
+{
+  "status": "complete",
+  "completed_at": "2026-11-18T13:15:26.666467+05:30",
+  "n_trajectories_per_study": 32,
+  "total_conditions": 2464,
+  "total_task_answers": 24640,
+  "M": {
+    "conditions": 1568,
+    "task_answers": 15680,
+    "verdict": "length-driven",
+    "analysis": "results/meta_HF_main_20261118/meta_experiment.json",
+    "analysis_sha256": "40e3c84f0f224f9810a9e0145361793a0425c66f01805bed7602b46cdce81a42",
+    "raw_root": "runs/meta_HF_main_20261118",
+    "archive_sha256": {
+      "M_L0": "8b3c88e85bfd010d3444ac69716f306663076c1a01f0788d9641cfb2977b1cfd",
+      "M_L100": "51a46c91b054fcfcbb4f9bba2d85fc416f54842811afa4f34cc422ab412d600a",
+      "M_L25": "6c7f2457959e63616199b64ecc8c20ed6dd64340f24f1ee6895c6bf087816437",
+      "M_L50": "9b1073a75f97c809bdd826b1a43be494095116ddd1a7bd0b9cd859ff2ca06475",
+      "M_L75": "160bd03b56d72ce6f4606d3c482dd8692f8aaf543e1ca565af4db81d84f6220b",
+      "M_S0": "833bfb7702b6ee63f09366410d01bceaf4c45a6df936bfa4c559a12a89f9d5fa",
+      "M_S100": "68a7bc621b0aac723d091b5ff7a88c1b04a220e99f90d22f555b535382fc9cb4"
+    },
+    "registration_commit": "1d11bc5a2a665062b3aec023f2dc18ba0c0d02a4"
+  },
+  "MR": {
+    "conditions": 896,
+    "task_answers": 8960,
+    "verdict": "inconclusive",
+    "analysis": "results/recovery_HG_gpu0_main_20261118/analysis.json",
+    "analysis_sha256": "7e0645199bf0eba8ed58128506a90c02998fa8655143da3c74646b66e45ceccb",
+    "raw_root": "runs/recovery_HG_gpu0_main_20261118",
+    "validated_archives": {
+      "MR_A": {
+        "conditions": 224,
+        "task_answers": 2240,
+        "archive_sha256": "bda7fb0db67466a407b9edc2bb77a174fe5db30acee632ed825f5106ae590b0b"
+      },
+      "MR_B": {
+        "conditions": 224,
+        "task_answers": 2240,
+        "archive_sha256": "999e3a73cacdb286559a11235d99fa5f9411d4080e3eb3e759e53575e63569d9"
+      },
+      "MR_C": {
+        "conditions": 224,
+        "task_answers": 2240,
+        "archive_sha256": "06db06a66c91b5842186aa4e323e10f40b4094502af9099a7d907f22389291f5"
+      },
+      "MR_D": {
+        "conditions": 224,
+        "task_answers": 2240,
+        "archive_sha256": "84cc7b8748bff6fd6dcd38d9e0a99a3e4016ff97e98e4eacd717d75eb4c896f2"
+      }
+    },
+    "registration_commit": "e45f9df02567cab48613f96c7af9799bfcc53cbe",
+    "hardware_amendment": "prereg_recovery_gpu0_amendment.md"
+  },
+  "publication_status": "Internal draft updated; instructor/submission review pending; no independent confirmation collected"
+}

@@ -1,0 +1,11 @@
+{
+  "results/main_studies_completion_20261118.json": "da9ec2f67eed0b400f1e4db37f0fa8fac776e656217a30bdf22f69f166194459",
+  "results/meta_HF_main_20261118/meta_experiment.json": "40e3c84f0f224f9810a9e0145361793a0425c66f01805bed7602b46cdce81a42",
+  "results/recovery_HG_gpu0_main_20261118/analysis.json": "7e0645199bf0eba8ed58128506a90c02998fa8655143da3c74646b66e45ceccb",
+  "results/meta_analysis.json": "4330c8df7048145f8117b6c5888882fa462c24d9321107775b850b97404126ac",
+  "results/recovery_gpu1_pilot_20261117/analysis.json": "879ec2d57c6cbe73a887df39becc9d2a8af5095e6005bb55cd23ebf7a6f4bc8b",
+  "results/meta_gpu1_calibration_20261118/meta_experiment.json": "cd7d55737dbe66d3cb381b198d74aa87fb8aff8aa33aead6e887ff05f3d2c9c1",
+  "runs/confirmation_C_main_20261118/status.json": "7154767afd91490f74eb19708a85415bf4c9c2151f7b1347ba5af8fa23ce5106",
+  "runs/confirmation_C_main_20261118/analysis/analysis.json": "9698f10f9061e05b5daa0fbbc18aa71fd7456327f41bd9b2391fceed0a620769",
+  "scripts/build_results_pdf.py": "636a70ec619179dc59c44104a87edf05f5d853b0d13510846ba676caaeec7229"
+}

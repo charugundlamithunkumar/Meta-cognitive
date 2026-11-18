@@ -1,0 +1,98 @@
+{
+  "status": "complete",
+  "main_completed_at": "2026-11-18T13:15:26.666467+05:30",
+  "confirmation_completed_at": "2026-11-18T17:08:53.060147+05:30",
+  "total_core_conditions": 4928,
+  "total_core_task_answers": 49280,
+  "n_unique_core_sequences": 64,
+  "original_main": {
+    "conditions": 2464,
+    "task_answers": 24640,
+    "HF": "length-driven",
+    "HG": "inconclusive"
+  },
+  "fresh_confirmation": {
+    "conditions": 2464,
+    "task_answers": 24640,
+    "HF": "length-driven",
+    "HG": "inconclusive",
+    "ids": [
+      12000,
+      12001,
+      12002,
+      12003,
+      12004,
+      12005,
+      12006,
+      12007,
+      12008,
+      12009,
+      12010,
+      12011,
+      12012,
+      12013,
+      12014,
+      12015,
+      12016,
+      12017,
+      12018,
+      12019,
+      12020,
+      12021,
+      12022,
+      12023,
+      12024,
+      12025,
+      12026,
+      12027,
+      12028,
+      12029,
+      12030,
+      12031
+    ],
+    "registration_commit": "ba956aa65bfb8ec4a08e9e0111a49aaa025fb554"
+  },
+  "archive_sha256": {
+    "main_M": {
+      "M_L0.tar.gz": "8b3c88e85bfd010d3444ac69716f306663076c1a01f0788d9641cfb2977b1cfd",
+      "M_L100.tar.gz": "51a46c91b054fcfcbb4f9bba2d85fc416f54842811afa4f34cc422ab412d600a",
+      "M_L25.tar.gz": "6c7f2457959e63616199b64ecc8c20ed6dd64340f24f1ee6895c6bf087816437",
+      "M_L50.tar.gz": "9b1073a75f97c809bdd826b1a43be494095116ddd1a7bd0b9cd859ff2ca06475",
+      "M_L75.tar.gz": "160bd03b56d72ce6f4606d3c482dd8692f8aaf543e1ca565af4db81d84f6220b",
+      "M_S0.tar.gz": "833bfb7702b6ee63f09366410d01bceaf4c45a6df936bfa4c559a12a89f9d5fa",
+      "M_S100.tar.gz": "68a7bc621b0aac723d091b5ff7a88c1b04a220e99f90d22f555b535382fc9cb4"
+    },
+    "main_MR": {
+      "MR_A.tar.gz": "bda7fb0db67466a407b9edc2bb77a174fe5db30acee632ed825f5106ae590b0b",
+      "MR_B.tar.gz": "999e3a73cacdb286559a11235d99fa5f9411d4080e3eb3e759e53575e63569d9",
+      "MR_C.tar.gz": "06db06a66c91b5842186aa4e323e10f40b4094502af9099a7d907f22389291f5",
+      "MR_D.tar.gz": "84cc7b8748bff6fd6dcd38d9e0a99a3e4016ff97e98e4eacd717d75eb4c896f2"
+    },
+    "C_M": {
+      "M_L0.tar.gz": "a2f4095faccc84d72dc7cc673b13d3fd33ca68973c7c09acd33a6aee1df134f2",
+      "M_L100.tar.gz": "3f12f5c5379a47af090e13140ffd1f473c4ea8d3b0a0ac648dc7e1a0c5071ea1",
+      "M_L25.tar.gz": "57ced44b6f7771fe086c4cd84062318709272f45137e8efe28760cb488474adc",
+      "M_L50.tar.gz": "a8671d770257b4865221198696cb0727f2193831ad7eb0f6fc5aaba445c5af91",
+      "M_L75.tar.gz": "d242fed17fd4da20a6b35274fbc561481fbe05bcca5e571db85eb571c13434b8",
+      "M_S0.tar.gz": "3c88ef8253c139ec76280f19ce3825e9ecaad1e8bb6a59629714f022795237ad",
+      "M_S100.tar.gz": "4f18112b8568eaae586127e0d3e66917f79b31fc004a1cbfd0c1d64678cb895f"
+    },
+    "C_MR": {
+      "MR_A.tar.gz": "32c4cdf14a279b322a40256cff8f89322029bb04206226ae1fb73c5fac4c043e",
+      "MR_B.tar.gz": "80ad074c8f254b8c57ecf0c009eff553cacb873ea3abef199a50061227f5ef31",
+      "MR_C.tar.gz": "8193d3be5566957b601d65c5d90521f2e7ced43ad63d4fa96566c1f55e8febd1",
+      "MR_D.tar.gz": "8f72fa186f2ea14ed4c45fdc64138b51b21c089ae60c7ec8456f753843d5dd2a"
+    }
+  },
+  "n_core_archives": 22,
+  "separate_exploratory_calibration_task_answers": 6240,
+  "existing_A0_exploratory_rows": 9600,
+  "pdf": "results/all_experiments_20261118/all_experimental_results.pdf",
+  "requested_output": "Results PDF only; no paper",
+  "source_manifest": "data/lhe/confirmation_20261118_manifest.json",
+  "source_manifest_sha256": "15b3a4ba3d877585fea2227c94e5c9c69ef079774421e970ad963fd8be00191c",
+  "pdf_sha256": "3274a5d3292897da2a84ab18832a1b7ca75a3435542f3fb795e4463398b8b184",
+  "pdf_pages": 71,
+  "confirmation_analysis": "results/confirmation_C_main_20261118/analysis.json",
+  "pdf_checked": true
+}

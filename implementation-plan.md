@@ -5,21 +5,30 @@
 **Updated:** 2026-11-18. The instructor accepted the recovery proposal. This file
 contains only the current M/HF and MR/HG implementation and experiment roadmap.
 
-**Start here:** Both calibrations are complete: M saved 392 conditions /
-3,920 real task answers; MR saved 224 / 2,240. CPU tests and context audits
-pass. Final runtime is `.38 / 6,144 / eager / one sequence / 512-token chunked
-prefill` on GPU 1. HF/HG protocols have been finalized for registration before
-main inference, keeping 32 ids and every original threshold. Main runs await
-the registration commit and approval of the measured roughly 90-minute budget.
+**Start here:** All approved experiments and analyses are complete. Original
+M/MR saved 24,640 task answers; independent fresh-sequence confirmation C saved
+another 24,640. All **4,928 core conditions / 49,280 task answers / 22 archives**
+validated. C finished at 17:08:53 IST on 18 November 2026 and released GPU 0.
+The final **71-page results PDF** is generated, numerically checked and visually
+inspected. No experiment or GPU run remains in the approved plan.
 
-**Local resources:** Granite 4.2 8B is downloaded in `models/granite-4.2-8b/`.
-Weights, tokenizer/template and pinned LHE data have CPU checksum manifests.
+**Requested output:** results only; no paper or submission. Earlier publication
+drafts remain in `previous work/publication drafts/`. Raw checkpoints, JSONL,
+archives, source snapshots, registered analyses and technical logs are retained.
+Original and fresh-sequence estimates are reported separately; calibration and
+A0 observations are explicitly exploratory. No decision rule was changed.
 
-**Execution from here:** finish registration commit → approved main M then MR
-collection → automatic paired analysis and figures → independent confirmation
-if feasible. `scripts/run_registered_meta.py` prepares that sequential queue,
-with persistent status, checkpoints, logs and source/config guards. A null
-result never cancels the other study. Check available GPU memory first.
+- [All experimental results — PDF](results/all_experiments_20261118/all_experimental_results.pdf).
+- [Combined completion/count/archive-digest record](results/all_experiments_completion_20261118.json).
+- [Original M results](results/meta_HF_main_20261118/main_summary.md).
+- [Original MR results](results/recovery_HG_gpu0_main_20261118/main_summary.md).
+- [Fresh confirmation analysis](results/confirmation_C_main_20261118/analysis.json).
+
+HF is length-driven under the operational history-truncation contrast in both
+cohorts: P=53.57 points originally and 52.70 in fresh confirmation. HG is
+inconclusive in both: repair and clean-reference equivalence pass; the two
+forecast/underconfidence criteria do not. These outcomes do not establish a
+pure token-count mechanism or universal introspection failure.
 
 **Current documents:** [accepted proposal](after-the-fix-problem-statement.pdf),
 [M guide](METACOGNITION.md), [HF registration](prereg.md).
@@ -38,9 +47,9 @@ or a reserved GPU budget. The approved question is documented in
 | Stage | Question | Existing evidence / remaining work |
 |---|---|---|
 | A0, exploratory | What changes as execution collapses? | Existing 32 × 300 results and `results/meta_analysis.{md,json}`; preserve them. |
-| M, HF | How do history length and injected error dose affect reports and next-10 accuracy? | Seven configs, runner, analysis and tests exist. Registration commit and real runs remain. Follow `prereg.md` §7 and `METACOGNITION.md`. |
-| MR, new HG | When current state is repaired, does execution recover and do forecasts reflect that recovery? | Draft HG written before analysis code; four-arm runner, analysis and CPU tests implemented. Real calibration and main inference pending. |
-| Confirmation | Does the finding repeat on unused sequences or another model? | Audit sample allocations first. Separate manifest, registration and budget; not a prerequisite for reporting an inconclusive first study. |
+| M, HF | How do history length and injected error dose affect reports and next-10 accuracy? | Main complete and validated; registered analysis and figures in `results/meta_HF_main_20261118/`. |
+| MR, new HG | When current state is repaired, does execution recover and do forecasts reflect that recovery? | Main complete and validated; HG1/HG2 pass, HG3/HG4 fail. Registered verdict inconclusive; full recovery/underconfidence pattern unsupported. |
+| Confirmation | Does the finding repeat on unused sequences or another model? | C completed on fresh seeds 2000–2031, all 32 paired trajectories. C-HF length-driven; C-HG inconclusive. All eleven C archives validated; analyses and figures saved. |
 
 **Primary scope:** Granite 4.2 8B, LHE running sum, K=1, T=300, the existing
 dictionary, non-thinking greedy continuation and independent probe forks.
@@ -83,7 +92,7 @@ results. The MR design must be frozen before examining either main study’s out
 Use `models/granite-4.2-8b`, configured revision
 `a7042144125ce5ae64f89610e8289647fc000b9a`, and local data revision
 `7e4901fbb42b88144a65782052d0c8d87a358edc`. Dataset checksums and the existing
-57-test CPU suite passed after implementation and precision validation. Do not equate configured revision
+61-test CPU suite passed again on 2026-11-18. Three separate reporting-audit tests also pass. Do not equate configured revision
 with independently verified downloaded weight contents.
 
 Before inference, record an MR manifest containing model/config/tokenizer and
@@ -95,9 +104,11 @@ Load the tokenizer with `local_files_only=True` and the model from its local pat
 
 Check GPU availability, free disk and context length immediately before a run;
 check process ownership before loading a model on the shared GPU.
-Retain bf16, configured memory utilization 0.6 and max context 16,384 unless a
-calibration-only amendment is necessary. Never truncate history silently.
-Instructor acceptance does not waive the user's requirement to approve GPU runs.
+Retain frozen bf16, memory utilization .38 and max context 6,144, with eager
+execution, one sequence and 512-token chunked prefill. These supersede the
+initial .6 / 16,384 runtime after calibration and before main inference. Never
+truncate history silently. Both main runs already have the user's approval;
+additional studies need their own long-run budget approval.
 
 ## 3. MR history construction and four arms
 
@@ -237,8 +248,8 @@ Secondary findings do not rescue a failed primary decision.
 
 ## 6. Implementation units and reuse boundaries
 
-The following MR paths are **implemented**. CPU/mock paths have been exercised;
-the real GPU inference path still requires calibration validation:
+The following MR paths are **implemented**. CPU/mock paths and the full real
+calibration pilot have passed; main collection remains:
 
 | New file / artifact | Responsibility and reuse |
 |---|---|
@@ -337,13 +348,14 @@ Granite-only evidence remains Granite-specific.
 | Milestone | Deliverable | Exit condition |
 |---|---|---|
 | P0 — readiness (done 2026-11-17) | Local model/data and full content manifest | All indexed shards and tokenizer/template files hashed; pinned data verified; CPU tests pass. |
-| P1 — draft design (done; freeze pending) | `prereg_recovery.md` | Written before MR analysis code; calibration/precision review and commit still required. |
-| P2 — CPU implementation (done 2026-11-17) | Four configs, runner, analysis, tests, mock/resume | 57 tests pass; full seven-checkpoint mock/resume exercised; mock verdict withheld. Synthetic power/null/boundary diagnostics saved for review. |
-| P3 — calibration and precision (MR pilot done; M/review pending) | MR pilot, recorded amendments and precision report saved | MR: 224 conditions / 2,240 real answers complete. M calibration and final review remain; combined HG pattern not established in pilot. |
-| P4 — freeze and authorize | Registration commits and source/model/data manifests | Relevant files committed; test guards pass; actual GPU budget approved. |
-| P5 — collect | All seven M arms and four MR arms in separate roots | Complete expected paired cells, resumable archives, no test-driven protocol changes. |
-| P6 — analyze | HF and HG tables, intervals, adjusted tests, figures | Full rules applied, missingness/floors disclosed, every number traceable to rows. |
-| P7 — confirm and write | Disjoint confirmation if feasible, bounded manuscript claims | Literature update and attribution review; all null/reversed results included. |
+| P1 — design (done) | HF/HG registrations | Drafted before analysis code; frozen before main inference. |
+| P2 — CPU implementation (done) | Runners, analyses, configs and tests | All 61 existing tests pass; mock/resume and statistical fixtures exercised. |
+| P3 — calibration and precision (done) | Pilots, amendments and precision reports | M 392 conditions / 3,920 answers; MR 224 / 2,240. Uncertain precision retained, thresholds unchanged. |
+| P4 — freeze and authorize (done) | Commit `1d11bc5` and resource manifests | Both registrations frozen; both main studies explicitly approved. |
+| P5 — collect (done) | Seven M and four MR archives | All 2,464 conditions / 24,640 task answers saved; 32 paired trajectories per study. |
+| P6 — analyze (done) | HF/HG estimates, tests, intervals and figures | HF length-driven (history truncation); HG inconclusive with execution-recovery tests supported and joint underconfidence unsupported. Full rules, floors and sparse AUROC support reported. |
+| P7 — independent confirmation C (done) | Fresh manifest and guarded replication | Commit `ba956aa`; user-approved full collection complete: 2,464 new conditions / 24,640 answers, all eleven archives and source snapshots validated. |
+| P8 — final results PDF (done) | One PDF of original, confirmation, calibration and exploratory results | 71 pages rendered after complete real C; source JSON values, PDF text/layout, input hashes and 22 archive digests checked. Raw results remain saved. No paper/submission task. |
 
 No fixed calendar completion or GPU-hour claim is made before P3 measurements.
 Implement both protocols before looking at their main outcomes; M results are
@@ -352,43 +364,36 @@ for scheduling convenience, but the HG specification must already be frozen.
 
 ## 10. Commands and compute accounting
 
-**Runnable now, CPU only** (from the repository root):
+**CPU verification and live status** (from the repository root):
 
 ```bash
 python3 -c "from src.lhe_data import verify; verify(); print('Dataset checksums OK')"
 python3 -m unittest discover -s tests -v
-python3 scripts/run_meta.py --help
-python3 scripts/run_meta.py --dry-run --ids 20-21 --checkpoints 10,25 --out runs/meta_cpu_20261117
-python3 scripts/run_meta.py --dry-run --ids 20-21 --checkpoints 10,25 --out runs/meta_cpu_20261117 --resume
-python3 scripts/analyze_meta_experiment.py runs/meta_cpu_20261117 --n-boot 100
+python3 -m unittest discover -s paper/tools -v
+python3 scripts/run_registered_meta.py --describe --gpu 1 --tag main_20261118
+systemctl --user status mithun-recovery-gpu0-main-20261118
+cat runs/main_recovery_gpu0_main_20261118/status.json
 ```
 
-Choose a new output path if that example already exists. Existing CPU smoke
-results need not be regenerated merely because this plan changed.
-
-**Existing M GPU commands, only after the corresponding approval**; test runs
-also require the HF registration/materials to match their commit:
+**Read-only MR preflight**, if a new technical concern warrants it:
 
 ```bash
-python3 scripts/run_meta.py --split calibration --ids 0-1 --arms L0 L100 S0 S100 --checkpoints 10 --gpu 0 --out runs/meta_cal_20261117
-python3 scripts/run_meta.py --split test --gpu 0 --out runs/meta_HF_20261117
-python3 scripts/run_meta.py --split test --gpu 0 --out runs/meta_HF_20261117 --resume
-python3 scripts/analyze_meta_experiment.py runs/meta_HF_20261117
+python3 scripts/run_recovery.py --preflight --split test --gpu 0 --resource-manifest results/recovery_resources_complete_20261117.json
 ```
 
-**MR CLI — implemented; CPU commands runnable now:**
+Existing main collection and analysis are handled by the approved queue; do not
+rerun calibration, M or completed analyses. See §12 for the guarded manual
+resume command, which must not run alongside the active service. For synthetic
+software checks use a new output path:
 
 ```bash
-python3 scripts/run_recovery.py --preflight --split calibration --ids 0-1 --checkpoints 10
-python3 scripts/run_recovery.py --dry-run --ids 20-21 --checkpoints 10,25 --out runs/recovery_mock_20261117
-python3 scripts/run_recovery.py --dry-run --ids 20-21 --checkpoints 10,25 --out runs/recovery_mock_20261117 --resume
-python3 scripts/analyze_recovery.py runs/recovery_mock_20261117 --n-boot 100
-# GPU: only after approval; test requires the finalized HG registration.
-python3 scripts/run_recovery.py --split calibration --ids 0-1 --checkpoints 10 --gpu 0 --out runs/recovery_cal_20261117 --resource-manifest results/recovery_resources_complete_20261117.json
-python3 scripts/run_recovery.py --split test --gpu 0 --out runs/recovery_HG_20261117 --resource-manifest results/recovery_resources_complete_20261117.json
-python3 scripts/run_recovery.py --split test --gpu 0 --out runs/recovery_HG_20261117 --resume --resource-manifest results/recovery_resources_complete_20261117.json
-python3 scripts/analyze_recovery.py runs/recovery_HG_20261117 --n-boot 10000
+python3 scripts/run_recovery.py --dry-run --ids 20-21 --checkpoints 10,25 --out runs/recovery_new_mock_check
+python3 scripts/run_recovery.py --dry-run --ids 20-21 --checkpoints 10,25 --out runs/recovery_new_mock_check --resume
+python3 scripts/analyze_recovery.py runs/recovery_new_mock_check --n-boot 100
 ```
+
+Mock measurements never enter empirical conclusions. Existing smoke results
+need not be regenerated solely because the plan's status changed.
 
 `--preflight` must be read-only and CPU-only: resource/hash/registration/context
 checks, counts and planned paths; no weight loading or generation. `--dry-run`
@@ -417,7 +422,9 @@ The new candidate contribution is the separation of **execution recovery**
 from **forecast recovery** under retained erroneous history. State repair and
 confidence trajectories already have precedents; credit the eight papers in
 the accepted proposal and the instructor's originating question. The current
-literature record was checked on 2026-11-16, not refreshed by this plan edit.
+literature record was refreshed on 2026-11-18 in `previous work/publication drafts/related-work.md`,
+including rollback and conversational-repair precedents. This targeted review
+does not establish priority.
 
 Explicit limitations: artificial +1 patterns; a teacher-forced past; one model
 and task; numerical-width effects; cue consistency/trust (repair contradicts
@@ -428,85 +435,51 @@ other models are separately registered robustness studies, not silently added
 primary arms. A floor-limited or null result remains reportable. Neither an
 accepted proposal nor a completed implementation guarantees publication.
 
-**Historical CPU milestone, 2026-11-17 (superseded by opening status):** CPU implementation is complete: HG draft, histories,
-runner/configs, atomic resume, analysis/figures, precision simulator and resource
-manifest. All 55 tests pass. A four-arm × two-trajectory × seven-checkpoint mock
-completed and resumed without regeneration. A read-only local-tokenizer preflight
-passed at all seven checkpoints for calibration ids 0–1; no weights were loaded.
-GPU calibration, pilot-based precision review, freeze/commit and main inference
-remain pending. See `RECOVERY.md` for implemented commands and artifact links.
+## 12. Final completion and saved outputs
 
+All approved collection, validation and analysis is complete. Original M/MR
+finished at 13:15 IST; independent C finished at 17:08:53 IST on 18 November
+2026. C used new ids 12000–12031 from seeds 2000–2031; the 186-record audit and
+300-turn content hashes avoided recorded uses/reservations. No calibration or
+mock observations entered confirmatory estimates. C-HF remains length-driven;
+C-HG remains inconclusive. Both studies retain their original thresholds,
+10,000 trajectory bootstraps, separate Holm families and floor rules.
 
-**Administrative reorganization, 2026-11-17:** Unused Study-1 files and all old-work shortcuts now reside only in `previous work/`. Active `prereg.md` retains HF; complete historical registrations/plans are archived. Shared primitives remain in `src/`. The id parser and bin definitions are in `src/study_common.py`; current tools read the unchanged archived +1 generator directly. Archived regression tests run via `tests/test_legacy_regression.py`. This changes file locations/imports, not the experimental design. Existing mock outputs retain their original source fingerprints and must not be resumed with changed code; use a new output root.
+All 61 core tests plus 10 reporting/migration/confirmation tests passed before
+C collection. Resource/checksum/context preflights passed. All completed
+checkpoint exports, source snapshots and immutable archives validated. The
+22 core archive SHA-256 values and exact counts are saved in
+`results/all_experiments_completion_20261118.json`. Original main archive
+hashes are unchanged. GPU model processes and deferred report services exited;
+GPU 0 returned to its baseline allocation.
 
+The user requested one results PDF, not a paper. Its final location is
+`results/all_experiments_20261118/all_experimental_results.pdf` (71 pages),
+with Markdown report source, figures, exact input hashes, PDF SHA-256 and
+pdfinfo metadata beside it. Earlier unreleased rendering checks are preserved
+only in `previous work/report render checks/`. Layout was visually inspected
+and critical numerical values verified in extracted PDF text. No raw result
+or scientific decision was changed for presentation.
 
-## Initial calibration smoke record — 2026-11-17
+Raw/provenance roots:
 
-The user authorized GPU 1. A calibration-only `gpu1-small` runtime profile
-(utilization .38, context 2,048, eager mode, one active sequence, 512-token
-chunked prefill) completed ids 0–1/checkpoint 10 in all four MR arms: eight
-conditions and 80 real answers. All 56 CPU tests pass. The profile is rejected
-for main inference; its amendment was written before calibration generation.
+- Original M: `runs/meta_HF_main_20261118/`.
+- Original MR: `runs/recovery_HG_gpu0_main_20261118/`.
+- Independent C: `runs/confirmation_C_main_20261118/{M,MR}/`.
+- C analysis copied unchanged to `results/confirmation_C_main_20261118/`.
+- C status: `runs/confirmation_C_main_20261118/status.json`, complete.
+- PDF status: `runs/confirmation_C_main_20261118/final_report_status.json`, complete.
 
-See [calibration smoke summary](results/recovery_gpu1_cal_20261117/smoke_summary.md).
-The pipeline and memory fit are validated for that scope only. Broader calibration
-at all checkpoints, real-variance precision review, registration freeze/commit
-and main runs remain pending. The small profile cannot serve the later
-checkpoints at its 2,048 limit; use a separately recorded larger-context
-calibration profile and recheck memory/context. No main settings changed.
+Read-only verification:
 
+```bash
+cat results/all_experiments_completion_20261118.json
+pdfinfo results/all_experiments_20261118/all_experimental_results.pdf
+(cd results/all_experiments_20261118 && sha256sum -c all_experimental_results.pdf.sha256)
+```
 
-## Full calibration pilot completed
-
-The GPU 1 pilot `recovery_gpu1_pilot_20261117` completed all 224 conditions
-and 2,240 real task answers under the pre-recorded `gpu1-long` calibration-only
-profile. All four archives validated and GPU memory was released. See the
-[pilot summary](results/recovery_gpu1_pilot_20261117/pilot_summary.md).
-
-A and C each produced 85/560 globally correct totals, B 21/560, D 23/560.
-The combined HG diagnostic criteria do not pass: the pilot does not establish
-overall underconfidence after repair. These are calibration findings, not a
-main study verdict. Keep the primary margins/checkpoints fixed rather than
-selecting a favorable subset. Review precision and the role of M before freeze.
-
-Precision simulation was corrected to operate on joint trajectory contrasts
-when shifted arm scores produced invalid draws. The recorded HG empirical
-tests were checked identical after extracting a shared statistical helper;
-all 57 tests pass. The generation source snapshot is preserved; changed code
-requires a new inference root. Main inference and automatic freezing remain
-blocked by the existing registration gate.
-
-
-## M calibration in progress — 2026-11-18
-
-Following the current roadmap, M calibration was started on GPU 1 using
-calibration ids 0–7, all seven arms and checkpoints (392 conditions / 3,920
-task answers). The `.38 / 6,144` eager/chunked-prefill runtime profile was
-documented in HF before inference and is rejected for test overrides. A shared
-helper now serves both M and MR runtime preflights; model prompts, masks,
-labels and HF tests are unchanged. All pre-freeze tests pass; M mock/resume and the
-real-tokenizer full context preflight passed (bound 5,241 tokens). The original
-calibration generation source is snapshotted under its run root. Finish this
-calibration before final runtime/precision review and registration freeze.
-
-
-## Pre-main review and freeze decision — 2026-11-18
-
-Both calibration pilots are complete and preserved. M diagnostic contrasts
-show pessimism 50.73 points, dose 4.78, but the corrected classification is
-inconclusive because dose equivalence is unresolved. MR does not establish
-overall repaired-arm underconfidence. Keep N=32, the full checkpoint set,
-margins and decision families; do not tune toward favorable outcomes.
-Calibration precision is explicitly uncertain; N=32 may yield an inconclusive
-result. No independent confirmation ids are silently allocated.
-
-Canonical runtime settings in all 11 main configs now match the fully tested
-calibration profile, with CPU main-input bound ≤5,430 below 6,144. Both protocols
-are marked frozen for the registration commit; calibration-only CLI overrides
-remain prohibited for test inference. Final code also preserves source snapshots
-automatically and refuses accidental M analysis-output overwrite.
-
-M main is projected at 56.1 minutes and MR at 32.8 minutes from pilot throughput
-(24,640 task answers total), plus startup/analysis/shared-machine variability.
-The original user instruction requires approval before a long GPU run; prepare
-and commit the concrete materials before requesting that final approval.
+Do not restart completed or obsolete queues. A later report revision may use
+`scripts/build_results_pdf.py --out results/a_new_report_directory`; it refuses
+overwrite and requires completed real C. Further models, tasks, mask seeds or
+controls are future proposals with separate registrations/budgets, not remaining
+work in this approved experiment. No messages, paper or submission are created.

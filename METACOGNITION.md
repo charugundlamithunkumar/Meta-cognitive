@@ -1,5 +1,11 @@
 # Metacognition follow-up (M)
 
+**Completed:** original M and independent fresh C-M each saved 1,568 conditions
+/ 15,680 task answers, with all archives and paired cells validated. Both HF
+classifications are length-driven under the history-truncation contrast.
+See `results/all_experiments_20261118/all_experimental_results.pdf`. The setup
+notes below describe implementation history; no GPU collection is pending.
+
 HF is in `prereg.md` §7, written before the new analysis implementation. A0
 analysis is exploratory because its outcomes were already inspected. Commit HF
 and the M materials before a confirmatory model run. No GPU run was performed

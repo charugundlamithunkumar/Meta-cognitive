@@ -1,8 +1,14 @@
 # Recovery experiment (MR / HG)
 
-This implements the accepted “After the Fix” design on CPU/mock paths and
-prepares a separately guarded local GPU path. **MR calibration is complete; main MR inference is pending.** `prereg_recovery.md` was drafted before the analysis code. It is
-not frozen or committed: final review and registration are the next gates.
+**Completed:** original MR and independent fresh C-MR each saved 896
+conditions / 8,960 task answers. All four archives per cohort and paired cells
+validated. HG was frozen before main inference in `1d11bc5`; GPU 0 main used
+execution amendment `e45f9df`; fresh C used `ba956aa`. Both HG verdicts are
+inconclusive: recovery and clean-reference equivalence pass, the forecast-margin
+and underconfidence criteria do not. No GPU run remains pending.
+
+Final results: `results/all_experiments_20261118/all_experimental_results.pdf`.
+Implementation and historical execution details follow.
 
 ## What exists
 

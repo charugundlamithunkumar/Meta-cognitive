@@ -1,0 +1,6 @@
+# ReportLab PDFs may contain no NUL bytes; always store them as binary.
+*.pdf binary
+# Preserve generated reports and tool metadata byte for byte.
+results/all_experiments_20261118/*.md -whitespace
+results/all_experiments_20261118/pdfinfo.txt -whitespace
+"work 1/report render checks/**" -whitespace
