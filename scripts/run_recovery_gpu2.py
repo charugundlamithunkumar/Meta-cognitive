@@ -5,6 +5,7 @@ import fcntl
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import time
@@ -28,12 +29,25 @@ EXTRA_SOURCE = [AMENDMENT, 'scripts/run_recovery_gpu2.py',
 ORIGINAL_COMMIT = '1d11bc5a2a665062b3aec023f2dc18ba0c0d02a4'
 
 
-def plan(tag, resource_manifest):
-    task = commands(tag, '2', resource_manifest)[1]
-    return dict(task=task, gpu='2', conditions=896, task_answers=8960,
+def plan(tag, resource_manifest, gpu='2', amendment=AMENDMENT):
+    if gpu not in {'0', '2'}:
+        raise ValueError('No registered migration for this GPU')
+    task = commands(tag, gpu, resource_manifest)[1]
+    return dict(task=task, gpu=gpu, conditions=896, task_answers=8960,
                 job=str(ROOT/'runs'/f'main_recovery_{tag}'),
-                amendment=AMENDMENT, original_registration_commit=ORIGINAL_COMMIT,
+                amendment=amendment, original_registration_commit=ORIGINAL_COMMIT,
                 completed_M=str(ROOT/'results/meta_HF_main_20261118/meta_experiment.json'))
+
+
+def prepare_environment():
+    """Give service children the build tools from this Python environment."""
+    os.environ['PATH'] = str(Path(sys.executable).parent) + os.pathsep + os.environ.get('PATH', os.defpath)
+    ninja = shutil.which('ninja')
+    if ninja is None:
+        raise FileNotFoundError('ninja is required for vLLM initialization')
+    return dict(ninja=ninja, ninja_sha256=sha256(ninja),
+                ninja_version=subprocess.check_output([ninja, '--version'], text=True).strip(),
+                compiler=shutil.which('g++'))
 
 
 def validate_outputs(root):
@@ -62,24 +76,26 @@ def validate_outputs(root):
     return counts
 
 
-def main():
+def main(*, gpu='2', amendment=AMENDMENT, additional_sources=()):
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--tag', default='gpu2_main_20261118')
+    ap.add_argument('--tag', default=f'gpu{gpu}_main_20261118')
     ap.add_argument('--resource-manifest', type=Path,
                     default=ROOT/'results/recovery_resources_complete_20261117.json')
     ap.add_argument('--describe', action='store_true')
     ap.add_argument('--resume', action='store_true')
     a = ap.parse_args()
-    p = plan(a.tag, a.resource_manifest)
+    p = plan(a.tag, a.resource_manifest, gpu, amendment)
     if a.describe:
         print(json.dumps(p, indent=2)); return
-    paths = source_files() + EXTRA_SOURCE
+    paths = source_files() + EXTRA_SOURCE + [amendment] + list(additional_sources)
     commit = check_meta_registration(paths)
     if check_registration() != commit:
         raise ValueError('HG registration commit mismatch')
+    tools = prepare_environment()
     task = p['task']; job = Path(p['job'])
     signature = dict(plan=p, commit=commit, resource_manifest_sha256=sha256(a.resource_manifest),
                      completed_M_sha256=sha256(p['completed_M']),
+                     runtime_tools=tools,
                      source_sha256={name:sha256(ROOT/name) for name in paths})
     if job.exists() and not a.resume:
         raise FileExistsError('Job exists; use --resume')
@@ -112,7 +128,7 @@ def main():
                     if check_meta_registration(paths) != commit:
                         raise ValueError('Source or commit changed during wait')
                     try:
-                        hardware = gpu_snapshot('2', utilization); break
+                        hardware = gpu_snapshot(gpu, utilization); break
                     except ValueError as e:
                         save('waiting_for_gpu', reason=str(e)); time.sleep(30)
                 save('inference', hardware=hardware)
@@ -134,7 +150,7 @@ def main():
                 raise ValueError('Incomplete analysis output; preserve and inspect before resuming')
             result = json.loads((analysis/'analysis.json').read_text())
             save('complete', validated_counts=counts, primary=result['primary'],
-                 hardware_amendment=AMENDMENT)
+                 hardware_amendment=amendment)
         except BaseException as e:
             save('failed', error=str(e)); raise
 
